@@ -67,6 +67,8 @@ class SimROSNode(Node):
             self.callback_joint_state,
             1,
         )
+        
+        # TODO: add depth image subscriptions if needed
 
         # msg
         self.lock_img_head = threading.Lock()

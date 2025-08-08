@@ -1,0 +1,40 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Remote Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    // "localRoot": "${workspaceFolder}/_build/linux-x86_64/release",
+                    "remoteRoot": "/root/workspace/main"
+                }
+            ]
+        },
+        {
+            "name": "Python Debugger: Remote Attach (AgiBot-World-Submission)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/AgiBot-World-Submission/CogACT",
+                    // "localRoot": "${workspaceFolder}/_build/linux-x86_64/release",
+                    "remoteRoot": "/root/workspace/main"
+                }
+            ]
+        }
+    ]
+}
