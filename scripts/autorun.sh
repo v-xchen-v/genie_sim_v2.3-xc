@@ -6,7 +6,7 @@ printf "=================================\n"
 printf "Run task $TASK_NAME in mode $MODE\n"
 printf "=================================\n"
 
-CONTAINER_NAME="genie_sim_benchmark"
+CONTAINER_NAME="genie_sim_benchmark_v2.3"
 START_SCRIPT="$PWD/scripts/start_gui.sh"
 TERMINAL_ENV="autorun"
 PROCESS_CLIENT="task_benchmark|teleop|replay|infer"
@@ -80,10 +80,10 @@ elif [ "$MODE" = "infer" ]; then
 
     if [ -z "$EXTRA_ARG" ]; then
         MODEL="User Defined Model"
-        MODEL_PATH="AgiBot-World"
+        MODEL_PATH="AgiBot-World-Submission"
     else
         MODEL=$EXTRA_ARG
-        MODEL_PATH="AgiBot-World/$MODEL"
+        MODEL_PATH="AgiBot-World-Submission/$MODEL"
     fi
 
     printf "Model type: $MODEL \n"

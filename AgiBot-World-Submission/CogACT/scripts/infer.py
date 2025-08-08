@@ -46,7 +46,7 @@ def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
 
-def infer(policy, cfg):
+def infer(policy):
     rclpy.init()
     current_path = os.getcwd()
     sim_ros_node = SimROSNode()
@@ -57,7 +57,7 @@ def infer(policy, cfg):
     count = 0
     SIM_INIT_TIME = 10
 
-    lang = get_instruction(cfg.task_name)
+    lang = get_instruction(task_name="iros_pack_in_the_supermarket")
     
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -96,7 +96,7 @@ def infer(policy, cfg):
                 # else:
                 action = policy.step(obs["img_list"], obs["task_description"], obs["robot_state"], obs["image_format"], verbose=True )
 
-                sim_ros_node.publish_joint_command(action)
+                # sim_ros_node.publish_joint_command(action)
                 sim_ros_node.loop_rate.sleep()
 
                 
