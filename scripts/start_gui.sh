@@ -14,7 +14,7 @@ else
 fi
 
 xhost +
-docker run -itd --name genie_sim_benchmark \
+docker run -itd --name genie_sim_benchmark_v2.3 \
     --entrypoint ./scripts/entrypoint.sh \
     --gpus all \
     --rm \
@@ -37,4 +37,4 @@ docker run -itd --name genie_sim_benchmark \
     -v $SIM_ASSETS:/root/assets:rw \
     -v $CURRENT_DIR:/root/workspace/main:rw \
     -w /root/workspace/main \
-    registry.agibot.com/genie-sim/open_source:latest
+    genie_sim_benchmark_v2.3
