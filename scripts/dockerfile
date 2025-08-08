@@ -66,7 +66,8 @@ RUN apt-get update
 RUN apt-get -y install cuda-toolkit-11-8
 # NOTICE!!! Default to RTX4090D that we use, do remember to change TORCH_CUDA_ARCH_LIST for your GPU model, see https://github.com/AgibotTech/genie_sim/issues/4
 ENV CUDA_HOME="/usr/local/cuda-11.8"
-ENV TORCH_CUDA_ARCH_LIST="8.9"
+# 8.6 for A6000, 8.9 for 4090
+ENV TORCH_CUDA_ARCH_LIST="8.6"
 RUN cd /tmp/curobo && /isaac-sim/python.sh -m pip install --no-build-isolation .[isaacsim] -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # OPTION 2: install from pre-built wheel, if you have already built curobo
