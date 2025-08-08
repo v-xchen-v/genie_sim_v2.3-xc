@@ -28,4 +28,5 @@ checkpoint
 checkpoints
 
 source/geniesim/app/robot_cfg/*_recording.json
-.vscode/
+
+

@@ -101,7 +101,7 @@ def infer(policy):
 
                 
                 # send command from model to sim
-                sim_ros_node.publish_joint_command(action)
+                # sim_ros_node.publish_joint_command(action)
                 sim_ros_node.loop_rate.sleep()
 
 def get_observations(img_h, img_l, img_r, lang, joint_positions):
@@ -144,7 +144,7 @@ def get_observations(img_h, img_l, img_r, lang, joint_positions):
     
 def get_policy():
     policy = CogActAPIPolicy(ip_address="localhost", port=8000)  # Adjust IP and port as needed
-    return None, None  # Placeholder for actual policy loading logic
+    return policy  # Placeholder for actual policy loading logic
 
 if __name__ == "__main__":
 
