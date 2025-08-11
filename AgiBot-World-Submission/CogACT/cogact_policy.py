@@ -88,7 +88,7 @@ class CogActAPIPolicy:
             json.dumps(
                 {
                     "task_description": task_description,
-                    # "state": robot_status,
+                    "state": robot_status,
                 }
             ).encode("utf-8")
         )
