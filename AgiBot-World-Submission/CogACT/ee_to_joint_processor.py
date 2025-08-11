@@ -21,22 +21,28 @@ class EEtoJointProcessor:
         self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
         if not self.fk_urdf_path.exists():
             raise FileNotFoundError(f"URDF file not found: {self.fk_urdf_path}")
+        self.fk_urdf_path = str(self.fk_urdf_path.resolve())
         
         self.coord_transformer = URDFCoordinateTransformer(self.fk_urdf_path)
         
         self.ik_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_NO_GRIPPER.urdf"
         if not self.ik_urdf_path.exists():
             raise FileNotFoundError(f"URDF file not found: {self.ik_urdf_path}")
+        self.ik_urdf_path = str(self.ik_urdf_path.resolve())
+        self.ik_config_path = Path(__file__).parent / "kinematics/configs/g1/g1_solver.yaml"
+        if not self.ik_config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {self.ik_config_path}")
+        self.ik_config_path = str(self.ik_config_path.resolve())
         
         # Initialize the IK solvers for both arms
         self.left_arm_ik_solver = G1RelaxSolver(
             urdf_path=self.ik_urdf_path,
-            config_path=Path(__file__).parent / "kinematics/configs/g1/g1_solver.yaml",
+            config_path=self.ik_config_path,
             arm="left"
         )
         self.right_arm_ik_solver = G1RelaxSolver(
             urdf_path=self.ik_urdf_path,
-            config_path=Path(__file__).parent / "kinematics/configs/g1/g1_solver.yaml",
+            config_path=self.ik_config_path,
             arm="right"
         )
         self.last_left_arm_joint_angles = None
@@ -119,13 +125,13 @@ class EEtoJointProcessor:
             raise ValueError("Arm must be 'left' or 'right'.")
         
         if arm == "left":
-            left_gripper_joint = vla_act_dict.get("ROBOT_LEFT_JOINTS")  # [num_steps, 1]
+            left_gripper_joint = vla_act_dict.get("ROBOT_LEFT_GRIPPER")  # [num_steps, 1]
             if left_gripper_joint is None:
                 raise ValueError("VLA action does not contain gripper joint angles for the left arm.")
             return left_gripper_joint
         
         # arm == "right"
-        right_gripper_joint = vla_act_dict.get("ROBOT_RIGHT_JOINTS")  # [num_steps, 1]
+        right_gripper_joint = vla_act_dict.get("ROBOT_RIGHT_GRIPPER")  # [num_steps, 1]
         if right_gripper_joint is None:
             raise ValueError("VLA action does not contain gripper joint angles for the right arm.")
         return right_gripper_joint
@@ -228,10 +234,10 @@ class EEtoJointProcessor:
         # Convert list of joint angles to a numpy array
         joint_angles_array = np.array(joint_angles_list)
         
-        if joint_angles_array.ndim == 1:
-            return joint_angles_array
+        # if joint_angles_array.ndim == 1:
+        #     return joint_angles_array
         
         # # TODO: Implement the conversion from VLA pose to joint angles
         # joint_angles = np.zeros(7)  # Placeholder for the actual joint angles
 
-        return joint_angles
+        return joint_angles_array
