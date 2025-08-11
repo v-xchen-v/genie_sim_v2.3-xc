@@ -230,7 +230,11 @@ def infer(policy):
                 execution_steps = [0, 8]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
-                    print(f"Delta joint angles for step {step_index}: {delta_joint_angles}")
+                    print(f"Delta joint angles for step {step_index}: \n")
+                    print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
+                    print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
+                    print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
+                    print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
                     # Convert delta joint angles to joint state message
                     sim_ros_node.publish_joint_command(joint_cmd[step_index])
