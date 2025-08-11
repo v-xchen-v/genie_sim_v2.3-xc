@@ -16,15 +16,15 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=True):
+    def __init__(self, log_obs=True):        
         
         self.log_obs = log_obs
         if self.log_obs:
             # Initialize log directory registry if logging is enabled
-            self.task_name = "default_task"  # Placeholder, can be set later
+            self.task_name = "iros_pack_in_the_supermarket"  # Placeholder, can be set later
             self._log_dir_registry = {}
         
-    def process(self, img_h, img_l, img_r, lang, state):
+    def process(self, img_h, img_l, img_r, lang, state, task_substep_index=0):
         """
         Process the input images, task description, and robot state.
         
@@ -41,6 +41,7 @@ class VLAInputProcessor:
         self.image_list = [img_h, img_l, img_r]
         self.task_instruction = lang
         self.robot_state = state
+        self.curr_task_substep_index = task_substep_index
         
         return self.prepare_input()
         
@@ -82,10 +83,12 @@ class VLAInputProcessor:
         head_left_img = processed_images[1]
         head_right_img = processed_images[2]
         
+        # Preprocess task instruction
+        processed_task_instruction = self.preprocess_instruction(self.task_instruction, self.curr_task_substep_index)
         
         # Construct the observations dictionary
         obs_dict = {
-            "task_description": self.task_instruction,
+            "task_description": processed_task_instruction,
             "images": {
                 "cam_top": cam_top_img,
                 "head_left": head_left_img,
@@ -94,6 +97,20 @@ class VLAInputProcessor:
             "robot_state": self.robot_state,
         }
         return obs_dict
+    
+    def preprocess_instruction(self, lang, substep_index=0):
+        """
+        Preprocess the task instruction.
+        
+        Args:
+            lang: Task description in natural language
+            substep_index: Index of the current substep
+            
+        Returns:
+            The processed task instruction.
+        """
+        instruction = self._obs_instruction(lang, substep_index)
+        return instruction
     
     def preprocess_images(self):
         """
@@ -122,6 +139,30 @@ class VLAInputProcessor:
         img = self._resize_image(img, target_size=(224, 224))
         return img        
     
+    def _obs_instruction(self, lang,  substep_index=0):
+        instruction_splits = self._split_instruction(lang)
+        
+        if substep_index >= len(instruction_splits):
+            return instruction_splits[-1]  # Return the last instruction if index exceeds
+        instruction = instruction_splits[
+            substep_index
+        ]  
+        return instruction
+    
+    def _split_instruction(self, instruction: str):
+        """
+        Split the instruction into individual actions.
+        """
+        # Split by semicolon and strip whitespace
+        subinstruction = [
+            action.strip() for action in instruction.split(";") if action.strip()
+        ]
+        if len(subinstruction) == 0:
+            raise ValueError("Instruction is empty or only contains semicolons.")
+        return subinstruction
+        
+        
+        
     def _resize_image(self, img, target_size=(224, 224)):
         """
         Resize the image to the target size while maintaining aspect ratio.
