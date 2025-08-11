@@ -90,28 +90,43 @@ def infer(policy):
                     img_r_raw, desired_encoding="rgb8"
                 )
 
-                # save images if needed for debugging
-                cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
-                cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
-                cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
+                # # save images if needed for debugging
+                # cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
+                # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
+                # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 
                 # state = np.array(act_raw.position)
                 state = None
 
                 input_processor = VLAInputProcessor()
+                curr_task_substep_index=0
                 input = input_processor.process(
-                    img_h, img_l, img_r, lang, state
+                    img_h, img_l, img_r, lang, state, curr_task_substep_index
                 )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
                 # if cfg.with_proprio:
                 #     action = policy.step(img_h, img_l, img_r, lang, state)
                 # else:
+                # print(f"instruction: {input["task_description"]}")
                 action = policy.step(input["image_list"], input["task_description"], input["robot_state"], verbose=True )
-
+                
+                if action:
+                    task_substep_progress = _action_task_substep_progress(action)
+                    if task_substep_progress[0][0] > 0.95:
+                        curr_task_substep_index += 1
+                        input_processor.curr_task_substep_index = curr_task_substep_index
+                        print(f"Task substep index updated to: {curr_task_substep_index}")
+                        
                 # send command from model to sim
                 # sim_ros_node.publish_joint_command(action)
                 sim_ros_node.loop_rate.sleep()
 
+def _action_task_substep_progress(action_raw):
+    """
+    Get the task substep progress from the action raw.
+    """
+    return action_raw["PROGRESS"] # shape: []
+    
 def get_observations(img_h, img_l, img_r, lang, joint_positions):
     """
     Prepare observations for the policy step.
