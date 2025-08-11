@@ -70,3 +70,51 @@ class G1RelaxSolver:
     def compute_fk(self, joint_angles: np.ndarray) -> list[np.ndarray]:
         """Compute FK from joint angles. Returns list of 4x4 poses."""
         return self._solver.compute_fk(joint_angles)
+
+if __name__ == "__main__":
+    import os
+    from pathlib import Path
+    # Example usage
+    # solver = G1RelaxSolver(urdf_path="path/to/urdf", config_path="path/to/config", arm="right")
+    # Get absolute path relative to this script
+    URDF_PATH = Path(__file__).parent / "configs/g1/G1_NO_GRIPPER.urdf"
+    CONFIG_PATH = Path(__file__).parent / "configs/g1/g1_solver.yaml"
+    
+    if not URDF_PATH.exists():
+        raise FileNotFoundError(f"URDF file not found: {URDF_PATH}")
+    
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Config file not found: {CONFIG_PATH}")
+    
+    # Ensure the path is absolute
+    URDF_PATH = str(URDF_PATH.resolve())
+    CONFIG_PATH = str(CONFIG_PATH.resolve())
+
+    # Initialize the solver
+    solver = G1RelaxSolver(
+        urdf_path=URDF_PATH,
+        config_path=CONFIG_PATH,
+        arm="right"
+    )
+
+    # Optional: Sync target with initial joint configuration
+    initial_joint_angles = np.zeros(7)
+    solver.set_current_state(initial_joint_angles)
+
+    # Example 1: Solve from 4x4 SE(3) pose
+    pose_matrix = np.eye(4)
+    pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
+    joint_solution = solver.solve_from_pose(pose_matrix)
+    print("Joint solution from SE(3) pose:\n", joint_solution)
+
+    # Example 2: Solve from position and quaternion
+    position = np.array([0.4, 0.1, 0.3])
+    quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
+    joint_solution = solver.solve_from_pos_quat(position, quaternion_xyzw)
+    print("Joint solution from pos + quat:\n", joint_solution)
+
+    # Example 3: Forward Kinematics
+    print("\n=== Forward Kinematics ===")
+    test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
+    ee_pose = solver.compute_fk(test_joint_angles)
+    print("End-effector pose from FK:\n", ee_pose)
