@@ -45,11 +45,63 @@ def get_instruction(task_name):
 
     return lang
 
+def get_head_joint_cfg(task_name):
+    # Define your joint configurations per task
+    task_joint_cfgs = {
+        "iros_clear_the_countertop_waste": {
+            "idx11_head_joint1": 0.,
+            "idx12_head_joint2": 0.4593
+        },
+        "iros_restock_supermarket_items": {
+            "idx11_head_joint1": 0.,
+            "idx12_head_joint2": 0.3839745594177246
+        },
+        "iros_clear_table_in_the_restaurant": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_stamp_the_seal": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.384
+        },
+        "iros_pack_in_the_supermarket": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_heat_the_food_in_the_microwave": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_open_drawer_and_store_items": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.2617993878
+        },
+        "iros_pack_moving_objects_from_conveyor": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.4362
+        },
+        "iros_pickup_items_from_the_freezer": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.4362
+        },
+        "iros_make_a_sandwich": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43634
+        }
+    }
+    
+    if task_name in task_joint_cfgs:
+        return task_joint_cfgs[task_name]
+    else:
+        raise ValueError(f"Joint configuration for task '{task_name}' not defined.")
+    
 def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
 
 def infer(policy):
+    
+    
     rclpy.init()
     current_path = os.getcwd()
     sim_ros_node = SimROSNode()
@@ -64,28 +116,25 @@ def infer(policy):
     
     transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
 
-    joint_cfg = {
-        "idx11_head_joint1": 0.10,
-        "idx12_head_joint2": -0.20
-    }
+    head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
 
     # arm_r_base_link -> head_link2
-    T_armr_to_head = transformer.relative_transform("arm_r_base_link", "head_link2", joint_cfg)
-    T_head_to_armr = transformer.reverse_transform("arm_r_base_link", "head_link2", joint_cfg)
+    T_armr_to_head = transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+    T_head_to_armr = transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
 
     # arm_l_base_link -> head_link2
-    T_arml_to_head = transformer.relative_transform("arm_l_base_link", "head_link2", joint_cfg)
-    T_head_to_arml = transformer.reverse_transform("arm_l_base_link", "head_link2", joint_cfg)
+    T_arml_to_head = transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    T_head_to_arml = transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
 
     print("arm_r_base_link -> head_link2:\n", T_armr_to_head)
     print("head_link2 -> arm_r_base_link:\n", T_head_to_armr)
     print("arm_l_base_link -> head_link2:\n", T_arml_to_head)
     print("head_link2 -> arm_l_base_link:\n", T_head_to_arml)
 
-    # Example point transformation
-    point_in_head = [0.1, 0.0, 0.0]
-    point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
-    print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
+    # # Example point transformation
+    # point_in_head = [0.1, 0.0, 0.0]
+    # point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
+    # print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
 
 
     while rclpy.ok():
