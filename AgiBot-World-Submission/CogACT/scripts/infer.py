@@ -16,6 +16,7 @@ import numpy as np
 from PIL import Image
 from cogact_policy import CogActAPIPolicy
 from vlainputprocessor import VLAInputProcessor
+from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 
 def get_instruction(task_name):
 
@@ -61,6 +62,32 @@ def infer(policy):
 
     lang = get_instruction(task_name="iros_pack_in_the_supermarket")
     
+    transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
+
+    joint_cfg = {
+        "idx11_head_joint1": 0.10,
+        "idx12_head_joint2": -0.20
+    }
+
+    # arm_r_base_link -> head_link2
+    T_armr_to_head = transformer.relative_transform("arm_r_base_link", "head_link2", joint_cfg)
+    T_head_to_armr = transformer.reverse_transform("arm_r_base_link", "head_link2", joint_cfg)
+
+    # arm_l_base_link -> head_link2
+    T_arml_to_head = transformer.relative_transform("arm_l_base_link", "head_link2", joint_cfg)
+    T_head_to_arml = transformer.reverse_transform("arm_l_base_link", "head_link2", joint_cfg)
+
+    print("arm_r_base_link -> head_link2:\n", T_armr_to_head)
+    print("head_link2 -> arm_r_base_link:\n", T_head_to_armr)
+    print("arm_l_base_link -> head_link2:\n", T_arml_to_head)
+    print("head_link2 -> arm_l_base_link:\n", T_head_to_arml)
+
+    # Example point transformation
+    point_in_head = [0.1, 0.0, 0.0]
+    point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
+    print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
+
+
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
         img_l_raw = sim_ros_node.get_img_left_wrist()
