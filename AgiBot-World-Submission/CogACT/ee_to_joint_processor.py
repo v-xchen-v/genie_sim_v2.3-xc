@@ -205,18 +205,24 @@ class EEtoJointProcessor:
         
         curr_left_arm_joint_angles = curr_arm_joint_angles[:7]
         curr_right_arm_joint_angles = curr_arm_joint_angles[8:15]
-        T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)
-        T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)
+        T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)[0]
+        T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)[0]
+        
+        # the readed joint angles is from sim but delta predicted is based on real camera coordinate
+        T_left_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
+        T_right_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
+        
         # convert into head cam coord frame
         if arm == "left":
             T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord[0], "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
             )
             
         else:  # arm == "right"
             T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord[0], "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
             )
+            
         curr_ee_rot = T_ee_pose_in_headcam_coord[:3, :3] # [3x3] rotation matrix
         curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
 
@@ -250,6 +256,10 @@ class EEtoJointProcessor:
             T_ee_pose_arm_base_frame = self.coord_transformer.transform_pose(
                 pose_4x4, "head_link2", "arm_r_base_link", joint_values=head_joint_cfg
             )
+            
+            # here we need to convert the pose from real cam to sim cam
+            T_ee_pose_arm_base_frame = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_arm_base_frame)
+            
             T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame)
         
         # Got ee poses in arm base frame, now solve IK for each pose
@@ -285,3 +295,74 @@ class EEtoJointProcessor:
         # joint_angles = np.zeros(7)  # Placeholder for the actual joint angles
 
         return joint_angles_array
+
+    def realcam_to_simcam(
+        self,
+        # T_realcam_in_world: np.ndarray,
+        T_obj_in_realcam: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Convert object pose from realcam frame to simcam frame.
+
+        Inputs:
+            T_realcam_in_world: 4x4 pose of realcam in world coordinates
+            T_obj_in_realcam: 4x4 pose of object in realcam coordinates
+
+        Output:
+            T_obj_in_simcam: 4x4 pose of object in simcam coordinates
+        """
+        # the vla model input obs-robot state should be in real camera coordinate
+        R_real2sim = np.array(
+            [
+                [1, 0, 0],  # realcam +X → simcam +X
+                [0, -1, 0],  # realcam +Y → simcam -Y
+                [0, 0, -1],  # realcam +Z → simcam -Z
+            ]
+        )
+
+        T_real2sim = np.eye(4)
+        T_real2sim[:3, :3] = R_real2sim
+
+        # T_obj_in_simcam = T_real2sim @ T_obj_in_realcam
+        T_sim2real = np.linalg.inv(T_real2sim)  # T_sim2real
+        T_obj_in_simcam = T_sim2real @ T_obj_in_realcam
+        return T_obj_in_simcam
+
+    def T_obj_in_simcam_to_T_obj_in_realcam(
+        self,
+        # T_simcam_in_world: np.ndarray,
+        T_obj_in_simcam: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Convert object pose from simcam frame to realcam frame.
+
+        Inputs:
+            T_simcam_in_world: 4x4 pose of simcam in world coordinates
+            T_obj_in_simcam: 4x4 pose of object in simcam coordinates
+
+        Output:
+            T_obj_in_realcam: 4x4 pose of object in realcam coordinates
+        """
+        # The vla model output action is in sim camera coordinate, but we should executa in sim camera then sim world cam
+        R_real2sim = np.array(
+            [
+                [1, 0, 0],  # realcam +X → simcam +X
+                [0, -1, 0],  # realcam +Y → simcam -Y
+                [0, 0, -1],  # realcam +Z → simcam -Z
+            ]
+        )
+        R_sim2real = R_real2sim.T
+        # np.array(
+        #     [
+        #         [1, 0,  0],
+        #         [0, 0,  1],
+        #         [0, -1, 0],
+        #     ]
+        # )
+
+        T_sim2real = np.eye(4)
+        T_sim2real[:3, :3] = R_sim2real
+
+        T_real2sim = np.linalg.inv(T_sim2real)  # T_real2sim
+        T_obj_in_realcam = T_real2sim @ T_obj_in_simcam
+        return T_obj_in_realcam

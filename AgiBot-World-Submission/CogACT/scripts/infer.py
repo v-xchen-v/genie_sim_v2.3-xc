@@ -227,7 +227,7 @@ def infer(policy):
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
                 
                 # send command from model to sim
-                execution_steps = [0, 8]
+                execution_steps = [0]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
                     print(f"Delta joint angles for step {step_index}: \n")
