@@ -95,7 +95,8 @@ def infer(policy):
                 cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 
-                state = np.array(act_raw.position)
+                # state = np.array(act_raw.position)
+                state = None
 
                 input_processor = VLAInputProcessor()
                 input = input_processor.process(
@@ -107,10 +108,6 @@ def infer(policy):
                 # else:
                 action = policy.step(input["image_list"], input["task_description"], input["robot_state"], verbose=True )
 
-                # sim_ros_node.publish_joint_command(action)
-                sim_ros_node.loop_rate.sleep()
-
-                
                 # send command from model to sim
                 # sim_ros_node.publish_joint_command(action)
                 sim_ros_node.loop_rate.sleep()
@@ -154,7 +151,9 @@ def get_observations(img_h, img_l, img_r, lang, joint_positions):
     return dummy_obs
     
 def get_policy():
-    policy = CogActAPIPolicy(ip_address="localhost", port=8000)  # Adjust IP and port as needed
+    PORT=15020 # 40k steps
+    ip = "10.190.172.212"
+    policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
 
 if __name__ == "__main__":
