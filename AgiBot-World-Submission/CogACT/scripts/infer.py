@@ -224,10 +224,17 @@ def infer(policy):
                         print(f"Task substep index updated to: {curr_task_substep_index}")
                         
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
+                # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
                 
                 # send command from model to sim
-                sim_ros_node.publish_joint_command(joint_cmd)
-                sim_ros_node.loop_rate.sleep()
+                execution_steps = [0, 8]
+                for step_index in execution_steps:
+                    delta_joint_angles = joint_cmd[step_index] - act_raw.position
+                    print(f"Delta joint angles for step {step_index}: {delta_joint_angles}")
+                    
+                    # Convert delta joint angles to joint state message
+                    sim_ros_node.publish_joint_command(joint_cmd[step_index])
+                    sim_ros_node.loop_rate.sleep()
 
 def _action_task_substep_progress(action_raw):
     """

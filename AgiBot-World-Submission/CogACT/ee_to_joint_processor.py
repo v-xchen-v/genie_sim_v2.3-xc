@@ -130,13 +130,13 @@ class EEtoJointProcessor:
             raise ValueError("Arm must be 'left' or 'right'.")
         
         if arm == "left":
-            left_gripper_joint = vla_act_dict.get("ROBOT_LEFT_GRIPPER")  # [num_steps, 1]
+            left_gripper_joint = np.array(vla_act_dict.get("ROBOT_LEFT_GRIPPER")).reshape(-1, 1)  # [num_steps, 1]
             if left_gripper_joint is None:
                 raise ValueError("VLA action does not contain gripper joint angles for the left arm.")
             return left_gripper_joint
         
         # arm == "right"
-        right_gripper_joint = vla_act_dict.get("ROBOT_RIGHT_GRIPPER")  # [num_steps, 1]
+        right_gripper_joint = np.array(vla_act_dict.get("ROBOT_RIGHT_GRIPPER")).reshape(-1, 1)  # [num_steps, 1]
         if right_gripper_joint is None:
             raise ValueError("VLA action does not contain gripper joint angles for the right arm.")
         return right_gripper_joint
@@ -151,9 +151,11 @@ class EEtoJointProcessor:
             raise ValueError("Arm must be 'left' or 'right'.")
         
         gripper_joint = self._act_gripper(arm, vla_act_dict)
+        print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
         
         # convert to joint command
-        gripper_cmd = np.clip(gripper_joint * 70, 0, 70)  # [num_steps, 1]
+        gripper_cmd = np.clip(gripper_joint * 120/70.0, 0, 1)  # [num_steps, 1]
+        print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
         
         return gripper_cmd
     
@@ -208,14 +210,14 @@ class EEtoJointProcessor:
         # convert into head cam coord frame
         if arm == "left":
             T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+                T_left_ee_pose_in_armbase_coord[0], "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
             )
             
         else:  # arm == "right"
             T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+                T_right_ee_pose_in_armbase_coord[0], "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
             )
-        curr_ee_rot = R.from_matrix(T_ee_pose_in_headcam_coord[:3, :3]).as_euler("xyz", degrees=False) # [rx, ry, rz]
+        curr_ee_rot = T_ee_pose_in_headcam_coord[:3, :3] # [3x3] rotation matrix
         curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
 
 
@@ -223,7 +225,7 @@ class EEtoJointProcessor:
         rotation_sum = curr_ee_rot
         translation_list = []
         for rot_delta in rotation_delta:
-            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False) * rotation_sum
+            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() * rotation_sum
             rotation_list.append(rotation_sum)
 
         translation_list = []
@@ -235,10 +237,10 @@ class EEtoJointProcessor:
         
         poses = []
         T_ee_pose_arm_base_frame_list = []
-        for rot_vec, trans_vec in zip(rotation_list, translation_list):
-            if len(rot_vec) != 3 or len(trans_vec) != 3:
+        for rot_matrix, trans_vec in zip(rotation_list, translation_list):
+            if rot_matrix.shape != (3, 3) or len(trans_vec) != 3:
                 raise ValueError("Rotation and translation vectors must be of length 3.")
-            rot_matrix = R.from_euler('xyz', rot_vec, degrees=False).as_matrix()
+            # rot_matrix = R.from_euler('xyz', rot_vec, degrees=False).as_matrix()
             pose_4x4 = np.eye(4)
             pose_4x4[:3, :3] = rot_matrix
             pose_4x4[:3, 3] = trans_vec
