@@ -18,6 +18,7 @@ from cogact_policy import CogActAPIPolicy
 from vlainputprocessor import VLAInputProcessor
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
+from ee_to_joint_processor import EEtoJointProcessor
 
 def get_instruction(task_name):
 
@@ -115,55 +116,56 @@ def infer(policy):
 
     lang = get_instruction(task_name="iros_pack_in_the_supermarket")
     
-    transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
+    coord_transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
     g1_ik_solver = G1RelaxSolver(
         urdf_path="kinematics/configs/g1/G1_NO_GRIPPER.urdf",
         config_path="kinematics/configs/g1/g1_solver.yaml",
         arm="right",
         debug=False,
     )
-    # Optional: Sync target with initial joint configuration
-    initial_joint_angles = np.zeros(7)
-    g1_ik_solver.set_current_state(initial_joint_angles)
+    # # Optional: Sync target with initial joint configuration
+    # initial_joint_angles = np.zeros(7)
+    # g1_ik_solver.set_current_state(initial_joint_angles)
 
-    # Example 1: Solve from 4x4 SE(3) pose
-    pose_matrix = np.eye(4)
-    pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
-    joint_solution = g1_ik_solver.solve_from_pose(pose_matrix)
-    print("Joint solution from SE(3) pose:\n", joint_solution)
+    # # Example 1: Solve from 4x4 SE(3) pose
+    # pose_matrix = np.eye(4)
+    # pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
+    # joint_solution = g1_ik_solver.solve_from_pose(pose_matrix)
+    # print("Joint solution from SE(3) pose:\n", joint_solution)
 
-    # Example 2: Solve from position and quaternion
-    position = np.array([0.4, 0.1, 0.3])
-    quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
-    joint_solution = g1_ik_solver.solve_from_pos_quat(position, quaternion_xyzw)
-    print("Joint solution from pos + quat:\n", joint_solution)
+    # # Example 2: Solve from position and quaternion
+    # position = np.array([0.4, 0.1, 0.3])
+    # quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
+    # joint_solution = g1_ik_solver.solve_from_pos_quat(position, quaternion_xyzw)
+    # print("Joint solution from pos + quat:\n", joint_solution)
 
-    # Example 3: Forward Kinematics
-    print("\n=== Forward Kinematics ===")
-    test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
-    ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
-    print("End-effector pose from FK:\n", ee_pose)
+    # # Example 3: Forward Kinematics
+    # print("\n=== Forward Kinematics ===")
+    # test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
+    # ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
+    # print("End-effector pose from FK:\n", ee_pose)
 
     head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
 
     # arm_r_base_link -> head_link2
-    T_armr_to_head = transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
-    T_head_to_armr = transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+    T_armr_to_headcam = coord_transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_armr = coord_transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
 
     # arm_l_base_link -> head_link2
-    T_arml_to_head = transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-    T_head_to_arml = transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
 
-    print("arm_r_base_link -> head_link2:\n", T_armr_to_head)
-    print("head_link2 -> arm_r_base_link:\n", T_head_to_armr)
-    print("arm_l_base_link -> head_link2:\n", T_arml_to_head)
-    print("head_link2 -> arm_l_base_link:\n", T_head_to_arml)
+    print("arm_r_base_link -> head_link2:\n", T_armr_to_headcam)
+    print("head_link2 -> arm_r_base_link:\n", T_headcam_to_armr)
+    print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
+    print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
 
     # # Example point transformation
     # point_in_head = [0.1, 0.0, 0.0]
     # point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
     # print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
 
+    ee_to_joint_processor = EEtoJointProcessor()
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -221,8 +223,10 @@ def infer(policy):
                         input_processor.curr_task_substep_index = curr_task_substep_index
                         print(f"Task substep index updated to: {curr_task_substep_index}")
                         
+                joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
+                
                 # send command from model to sim
-                # sim_ros_node.publish_joint_command(action)
+                sim_ros_node.publish_joint_command(joint_cmd)
                 sim_ros_node.loop_rate.sleep()
 
 def _action_task_substep_progress(action_raw):
@@ -230,6 +234,7 @@ def _action_task_substep_progress(action_raw):
     Get the task substep progress from the action raw.
     """
     return action_raw["PROGRESS"] # shape: []
+
     
 def get_observations(img_h, img_l, img_r, lang, joint_positions):
     """

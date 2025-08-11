@@ -4,12 +4,13 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 import numpy as np
-from scipy.spatial.transform import Rotation
+from scipy.spatial.transform import Rotation as R
 from typing import Dict, Optional
 from pathlib import Path
 
 from kinematics.g1_relax_ik import G1RelaxSolver
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
+
 
 class EEtoJointProcessor:
     """
@@ -49,7 +50,9 @@ class EEtoJointProcessor:
         self.last_right_arm_joint_angles = None
         
     
-    def get_joint_cmd(self, vla_act_dict, head_joint_cfg: Optional[Dict[str, float]] = None) -> np.ndarray:
+    def get_joint_cmd(self, vla_act_dict, 
+                      head_joint_cfg: Optional[Dict[str, float]],
+                      curr_arm_joint_angles: np.ndarray) -> np.ndarray:
         """
         Get joint command from VLA action.
             "idx21_arm_l_joint1",
@@ -69,7 +72,7 @@ class EEtoJointProcessor:
             "idx67_arm_r_joint7",
             "idx81_gripper_r_outer_joint1",
         """
-        vla_act_dict = self._process(vla_act_dict, head_joint_cfg=head_joint_cfg)
+        vla_act_dict = self._process(vla_act_dict, head_joint_cfg=head_joint_cfg, curr_arm_joint_angles=curr_arm_joint_angles)
         left_arm_joint_angles = vla_act_dict.get("ROBOT_LEFT_JOINTS")
         right_arm_joint_angles = vla_act_dict.get("ROBOT_RIGHT_JOINTS")
         
@@ -91,7 +94,7 @@ class EEtoJointProcessor:
         return joint_cmd
     
     ### ------------Private API------------ ###
-    def _process(self, vla_act_dict: dict, head_joint_cfg: Optional[Dict[str, float]] = None) -> np.ndarray:
+    def _process(self, vla_act_dict: dict, head_joint_cfg: Optional[Dict[str, float]], curr_arm_joint_angles) -> np.ndarray:
         """
         Process VLA action to joint angles.
         vla_act_dict: dict with keys 'rotation' and 'translation' for the end-effector pose.
@@ -103,12 +106,14 @@ class EEtoJointProcessor:
         left_arm_joint_angles = self.vla_pose_to_joints(
             vla_act_dict,
             arm="left",
-            head_joint_cfg=head_joint_cfg
+            head_joint_cfg=head_joint_cfg,
+            curr_arm_joint_angles=curr_arm_joint_angles
         ) # [num_steps, 7] joint angles for left arm
         right_arm_joint_angles = self.vla_pose_to_joints(
             vla_act_dict,
             arm="right",
-            head_joint_cfg=head_joint_cfg
+            head_joint_cfg=head_joint_cfg,
+            curr_arm_joint_angles=curr_arm_joint_angles
         ) # [num_steps, 7] joint angles for right arm
         
         # Add the joint angles into the action dict for controller
@@ -159,6 +164,7 @@ class EEtoJointProcessor:
         # trans_key: str,
         arm: str,
         head_joint_cfg: Dict[str, float],
+        curr_arm_joint_angles,
     ) -> np.ndarray:
         """
         Convert VLA action to joint angles.
@@ -174,29 +180,65 @@ class EEtoJointProcessor:
             rot_key = "ROBOT_RIGHT_ROT_EULER"
             trans_key = "ROBOT_RIGHT_TRANS"
 
+
         # Extract rotation and translation from the VLA action dictionary
-        rotation = vla_act_dict.get(rot_key) # [num_steps, 3] euler angles
-        translation = vla_act_dict.get(trans_key) # [num_steps, 3]
+        rotation_delta = vla_act_dict.get(rot_key) # [num_steps, 3] euler angles
+        translation_delta = vla_act_dict.get(trans_key) # [num_steps, 3]
                 
         # for each step, convert to 4x4 pose matrix
-        if isinstance(rotation, list) and isinstance(translation, list):
-            if len(rotation) != len(translation):
+        if isinstance(rotation_delta, list) and isinstance(translation_delta, list):
+            if len(rotation_delta) != len(translation_delta):
                 raise ValueError("Rotation and translation lists must have the same length.")
         
-        """Refer:
-        def xyzrpy2mat(xyzrpy):
-            rot = R.from_euler("xyz", xyzrpy[3:6]).as_matrix()
-            mat = np.eye(4)
-            mat[0:3, 0:3] = rot
-            mat[0:3, 3] = xyzrpy[0:3]
-            return mat
         """
+        Handle delta
+        Refer:
+        rotation_sum = R.from_euler("xyz", ee_left_rot_eular_xyz_s, degrees=False)
+        rotaion_list = []
+        for delta in ee_left_rot_euler_xyz_delta:
+            rotation_sum = R.from_euler("xyz", delta, degrees=False) * rotation_sum
+            rotaion_list.append(rotation_sum.as_euler("xyz", degrees=False))
+        return np.array(rotaion_list)
+        """
+        
+        curr_left_arm_joint_angles = curr_arm_joint_angles[:7]
+        curr_right_arm_joint_angles = curr_arm_joint_angles[8:15]
+        T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)
+        T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)
+        # convert into head cam coord frame
+        if arm == "left":
+            T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
+                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+            )
+            
+        else:  # arm == "right"
+            T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
+                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+            )
+        curr_ee_rot = R.from_matrix(T_ee_pose_in_headcam_coord[:3, :3]).as_euler("xyz", degrees=False) # [rx, ry, rz]
+        curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
+
+
+        rotation_list = []
+        rotation_sum = curr_ee_rot
+        translation_list = []
+        for rot_delta in rotation_delta:
+            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False) * rotation_sum
+            rotation_list.append(rotation_sum)
+
+        translation_list = []
+        translation_sum = curr_ee_trans
+        for trans_delta in translation_delta:
+            translation_sum += trans_delta
+            translation_list.append(translation_sum)
+            
+        
         poses = []
         T_ee_pose_arm_base_frame_list = []
-        for rot_vec, trans_vec in zip(rotation, translation):
+        for rot_vec, trans_vec in zip(rotation_list, translation_list):
             if len(rot_vec) != 3 or len(trans_vec) != 3:
                 raise ValueError("Rotation and translation vectors must be of length 3.")
-            rot_matrix = Rotation.from_euler('xyz', rot_vec, degrees=False).as_matrix()
+            rot_matrix = R.from_euler('xyz', rot_vec, degrees=False).as_matrix()
             pose_4x4 = np.eye(4)
             pose_4x4[:3, :3] = rot_matrix
             pose_4x4[:3, 3] = trans_vec

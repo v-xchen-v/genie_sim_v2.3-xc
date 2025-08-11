@@ -118,3 +118,19 @@ if __name__ == "__main__":
     test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
     ee_pose = solver.compute_fk(test_joint_angles)
     print("End-effector pose from FK:\n", ee_pose)
+
+"""
+Joint solution from SE(3) pose:
+ [-0.4316075   0.90557557 -0.65350043 -0.5972585  -0.60347459  0.43690316
+ -0.52192065]
+Joint solution from pos + quat:
+ [-0.79689196  1.38640577 -1.03052309 -0.82620796 -1.01799517  0.39553967
+ -0.8934613 ]
+
+=== Forward Kinematics ===
+End-effector pose from FK:
+ [array([[-0.43283037,  0.88429498,  0.17515779,  0.02338834],
+       [-0.14581669,  0.12306505, -0.98162747, -0.88054317],
+       [-0.88960405, -0.45041911,  0.07567868, -0.09303681],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])]
+"""

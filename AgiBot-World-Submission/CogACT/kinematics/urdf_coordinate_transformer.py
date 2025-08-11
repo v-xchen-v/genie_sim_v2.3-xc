@@ -61,6 +61,87 @@ class URDFCoordinateTransformer:
         point_h = np.append(np.array(point), 1.0)  # to homogeneous
         return (T @ point_h)[:3]
 
+    def transform_pose(
+        self,
+        T_obj, # pose
+        link_from,
+        link_to,
+        joint_values=None,
+        output="matrix",          # "matrix" | "tuple_quat" | "tuple_euler"
+        euler_order="xyz"         # used when parsing/returning eulers
+    ):
+        """
+        Transform a pose expressed in link_from's frame into link_to's frame.
+
+        pose:
+          - 4x4 homogeneous matrix
+
+        Returns:
+          - if output=="matrix": 4x4 homogeneous matrix
+          - if output=="tuple_quat": (t, quat[x,y,z,w])
+          - if output=="tuple_euler": (t, euler in euler_order)
+        """
+        # transform between frames
+        T_rel = self.relative_transform(link_from, link_to, joint_values)
+
+        # apply transform
+        T_out = T_rel @ T_obj
+
+        if output == "matrix":
+            return T_out
+        elif output == "tuple_quat":
+            t = T_out[:3, 3]
+            q = R.from_matrix(T_out[:3, :3]).as_quat()  # [x,y,z,w]
+            return t, q
+        elif output == "tuple_euler":
+            t = T_out[:3, 3]
+            e = R.from_matrix(T_out[:3, :3]).as_euler(euler_order)
+            return t, e
+        else:
+            raise ValueError("output must be 'matrix', 'tuple_quat', or 'tuple_euler'.")
+
+    # helper: coerce various pose formats to 4x4 matrix
+    def _pose_to_matrix(self, pose, euler_order="xyz"):
+        if isinstance(pose, np.ndarray) and pose.shape == (4, 4):
+            return pose
+
+        # dict input
+        if isinstance(pose, dict):
+            t = np.asarray(pose.get("t", [0, 0, 0]), dtype=float)
+            if "quat" in pose:
+                Rm = R.from_quat(pose["quat"]).as_matrix()
+            elif "euler" in pose:
+                order = pose.get("order", euler_order)
+                Rm = R.from_euler(order, pose["euler"]).as_matrix()
+            elif "R" in pose:
+                Rm = np.asarray(pose["R"], dtype=float)
+            else:
+                Rm = np.eye(3)
+            return self._make_T(Rm, t)
+
+        # tuple/list input
+        if isinstance(pose, (list, tuple)) and len(pose) == 2:
+            t = np.asarray(pose[0], dtype=float)
+            rot = np.asarray(pose[1], dtype=float)
+
+            if rot.shape == (4,):  # quat
+                Rm = R.from_quat(rot).as_matrix()
+            elif rot.shape == (3,):  # euler
+                Rm = R.from_euler(euler_order, rot).as_matrix()
+            elif rot.shape == (3, 3):  # rotation matrix
+                Rm = rot
+            else:
+                raise ValueError("Unrecognized rotation format in pose tuple.")
+            return self._make_T(Rm, t)
+
+        raise ValueError("Unsupported pose format. Provide 4x4, (t, rot), or dict.")
+
+    @staticmethod
+    def _make_T(Rm, t):
+        T = np.eye(4)
+        T[:3, :3] = Rm
+        T[:3, 3] = np.asarray(t, dtype=float)
+        return T
 
 # === Example Usage ===
 if __name__ == "__main__":
