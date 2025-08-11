@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+import cv2
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 sys.path.append(str(Path(__file__).parent.parent))
@@ -14,6 +15,7 @@ from cv_bridge import CvBridge
 import numpy as np
 from PIL import Image
 from cogact_policy import CogActAPIPolicy
+from vlainputprocessor import VLAInputProcessor
 
 def get_instruction(task_name):
 
@@ -88,13 +90,22 @@ def infer(policy):
                     img_r_raw, desired_encoding="rgb8"
                 )
 
+                # save images if needed for debugging
+                cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
+                cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
+                cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
+                
                 state = np.array(act_raw.position)
 
-                obs = get_observations(img_h, img_l, img_r, lang, state)
+                input_processor = VLAInputProcessor()
+                input = input_processor.process(
+                    img_h, img_l, img_r, lang, state
+                )
+                # obs = get_observations(img_h, img_l, img_r, lang, state)
                 # if cfg.with_proprio:
                 #     action = policy.step(img_h, img_l, img_r, lang, state)
                 # else:
-                action = policy.step(obs["img_list"], obs["task_description"], obs["robot_state"], obs["image_format"], verbose=True )
+                action = policy.step(input["image_list"], input["task_description"], input["robot_state"], verbose=True )
 
                 # sim_ros_node.publish_joint_command(action)
                 sim_ros_node.loop_rate.sleep()
