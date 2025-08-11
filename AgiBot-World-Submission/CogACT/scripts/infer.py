@@ -16,6 +16,9 @@ import numpy as np
 from PIL import Image
 from cogact_policy import CogActAPIPolicy
 from vlainputprocessor import VLAInputProcessor
+from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
+from kinematics.g1_relax_ik import G1RelaxSolver
+from ee_to_joint_processor import EEtoJointProcessor
 
 def get_instruction(task_name):
 
@@ -44,11 +47,63 @@ def get_instruction(task_name):
 
     return lang
 
+def get_head_joint_cfg(task_name):
+    # Define your joint configurations per task
+    task_joint_cfgs = {
+        "iros_clear_the_countertop_waste": {
+            "idx11_head_joint1": 0.,
+            "idx12_head_joint2": 0.4593
+        },
+        "iros_restock_supermarket_items": {
+            "idx11_head_joint1": 0.,
+            "idx12_head_joint2": 0.3839745594177246
+        },
+        "iros_clear_table_in_the_restaurant": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_stamp_the_seal": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.384
+        },
+        "iros_pack_in_the_supermarket": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_heat_the_food_in_the_microwave": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43633231
+        },
+        "iros_open_drawer_and_store_items": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.2617993878
+        },
+        "iros_pack_moving_objects_from_conveyor": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.4362
+        },
+        "iros_pickup_items_from_the_freezer": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.4362
+        },
+        "iros_make_a_sandwich": {
+            "idx11_head_joint1": 0.0,
+            "idx12_head_joint2": 0.43634
+        }
+    }
+    
+    if task_name in task_joint_cfgs:
+        return task_joint_cfgs[task_name]
+    else:
+        raise ValueError(f"Joint configuration for task '{task_name}' not defined.")
+    
 def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
 
 def infer(policy):
+    
+    
     rclpy.init()
     current_path = os.getcwd()
     sim_ros_node = SimROSNode()
@@ -61,6 +116,57 @@ def infer(policy):
 
     lang = get_instruction(task_name="iros_pack_in_the_supermarket")
     
+    coord_transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
+    g1_ik_solver = G1RelaxSolver(
+        urdf_path="kinematics/configs/g1/G1_NO_GRIPPER.urdf",
+        config_path="kinematics/configs/g1/g1_solver.yaml",
+        arm="right",
+        debug=False,
+    )
+    # # Optional: Sync target with initial joint configuration
+    # initial_joint_angles = np.zeros(7)
+    # g1_ik_solver.set_current_state(initial_joint_angles)
+
+    # # Example 1: Solve from 4x4 SE(3) pose
+    # pose_matrix = np.eye(4)
+    # pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
+    # joint_solution = g1_ik_solver.solve_from_pose(pose_matrix)
+    # print("Joint solution from SE(3) pose:\n", joint_solution)
+
+    # # Example 2: Solve from position and quaternion
+    # position = np.array([0.4, 0.1, 0.3])
+    # quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
+    # joint_solution = g1_ik_solver.solve_from_pos_quat(position, quaternion_xyzw)
+    # print("Joint solution from pos + quat:\n", joint_solution)
+
+    # # Example 3: Forward Kinematics
+    # print("\n=== Forward Kinematics ===")
+    # test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
+    # ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
+    # print("End-effector pose from FK:\n", ee_pose)
+
+    head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
+
+    # arm_r_base_link -> head_link2
+    T_armr_to_headcam = coord_transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_armr = coord_transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+
+    # arm_l_base_link -> head_link2
+    T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+
+    print("arm_r_base_link -> head_link2:\n", T_armr_to_headcam)
+    print("head_link2 -> arm_r_base_link:\n", T_headcam_to_armr)
+    print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
+    print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
+
+    # # Example point transformation
+    # point_in_head = [0.1, 0.0, 0.0]
+    # point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
+    # print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
+
+    ee_to_joint_processor = EEtoJointProcessor()
+
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
         img_l_raw = sim_ros_node.get_img_left_wrist()
@@ -117,15 +223,29 @@ def infer(policy):
                         input_processor.curr_task_substep_index = curr_task_substep_index
                         print(f"Task substep index updated to: {curr_task_substep_index}")
                         
+                joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
+                # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
+                
                 # send command from model to sim
-                # sim_ros_node.publish_joint_command(action)
-                sim_ros_node.loop_rate.sleep()
+                execution_steps = [0]
+                for step_index in execution_steps:
+                    delta_joint_angles = joint_cmd[step_index] - act_raw.position
+                    print(f"Delta joint angles for step {step_index}: \n")
+                    print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
+                    print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
+                    print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
+                    print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
+                    
+                    # Convert delta joint angles to joint state message
+                    sim_ros_node.publish_joint_command(joint_cmd[step_index])
+                    sim_ros_node.loop_rate.sleep()
 
 def _action_task_substep_progress(action_raw):
     """
     Get the task substep progress from the action raw.
     """
     return action_raw["PROGRESS"] # shape: []
+
     
 def get_observations(img_h, img_l, img_r, lang, joint_positions):
     """
