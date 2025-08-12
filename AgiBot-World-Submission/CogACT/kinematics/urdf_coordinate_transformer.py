@@ -61,44 +61,44 @@ class URDFCoordinateTransformer:
         point_h = np.append(np.array(point), 1.0)  # to homogeneous
         return (T @ point_h)[:3]
 
-    def transform_pose(
-        self,
-        T_obj, # pose
-        link_from,
-        link_to,
-        joint_values=None,
-        output="matrix",          # "matrix" | "tuple_quat" | "tuple_euler"
-        euler_order="xyz"         # used when parsing/returning eulers
-    ):
-        """
-        Transform a pose expressed in link_from's frame into link_to's frame.
+    # def transform_pose(
+    #     self,
+    #     T_obj, # pose
+    #     link_from,
+    #     link_to,
+    #     joint_values=None,
+    #     output="matrix",          # "matrix" | "tuple_quat" | "tuple_euler"
+    #     euler_order="xyz"         # used when parsing/returning eulers
+    # ):
+    #     """
+    #     Transform a pose expressed in link_from's frame into link_to's frame.
 
-        pose:
-          - 4x4 homogeneous matrix
+    #     pose:
+    #       - 4x4 homogeneous matrix
 
-        Returns:
-          - if output=="matrix": 4x4 homogeneous matrix
-          - if output=="tuple_quat": (t, quat[x,y,z,w])
-          - if output=="tuple_euler": (t, euler in euler_order)
-        """
-        # transform between frames
-        T_rel = self.relative_transform(link_from, link_to, joint_values)
+    #     Returns:
+    #       - if output=="matrix": 4x4 homogeneous matrix
+    #       - if output=="tuple_quat": (t, quat[x,y,z,w])
+    #       - if output=="tuple_euler": (t, euler in euler_order)
+    #     """
+    #     # transform between frames
+    #     T_rel = self.relative_transform(link_from, link_to, joint_values)
 
-        # apply transform
-        T_out = T_rel @ T_obj
+    #     # apply transform
+    #     T_out = T_rel @ T_obj
 
-        if output == "matrix":
-            return T_out
-        elif output == "tuple_quat":
-            t = T_out[:3, 3]
-            q = R.from_matrix(T_out[:3, :3]).as_quat()  # [x,y,z,w]
-            return t, q
-        elif output == "tuple_euler":
-            t = T_out[:3, 3]
-            e = R.from_matrix(T_out[:3, :3]).as_euler(euler_order)
-            return t, e
-        else:
-            raise ValueError("output must be 'matrix', 'tuple_quat', or 'tuple_euler'.")
+    #     if output == "matrix":
+    #         return T_out
+    #     elif output == "tuple_quat":
+    #         t = T_out[:3, 3]
+    #         q = R.from_matrix(T_out[:3, :3]).as_quat()  # [x,y,z,w]
+    #         return t, q
+    #     elif output == "tuple_euler":
+    #         t = T_out[:3, 3]
+    #         e = R.from_matrix(T_out[:3, :3]).as_euler(euler_order)
+    #         return t, e
+    #     else:
+    #         raise ValueError("output must be 'matrix', 'tuple_quat', or 'tuple_euler'.")
 
     # helper: coerce various pose formats to 4x4 matrix
     def _pose_to_matrix(self, pose, euler_order="xyz"):

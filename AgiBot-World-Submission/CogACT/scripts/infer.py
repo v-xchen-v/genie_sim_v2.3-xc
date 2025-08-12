@@ -19,6 +19,7 @@ from vlainputprocessor import VLAInputProcessor
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_to_joint_processor import EEtoJointProcessor
+from pathlib import Path
 
 def get_instruction(task_name):
 
@@ -47,6 +48,8 @@ def get_instruction(task_name):
 
     return lang
 
+        # "idx01_body_joint1": 0.3,
+        # "idx02_body_joint2": 0.52359877,
 def get_head_joint_cfg(task_name):
     # Define your joint configurations per task
     task_joint_cfgs = {
@@ -67,6 +70,8 @@ def get_head_joint_cfg(task_name):
             "idx12_head_joint2": 0.384
         },
         "iros_pack_in_the_supermarket": {
+            "idx01_body_joint1": 0.3,
+            "idx02_body_joint2": 0.52359877,
             "idx11_head_joint1": 0.0,
             "idx12_head_joint2": 0.43633231
         },
@@ -116,10 +121,12 @@ def infer(policy):
 
     lang = get_instruction(task_name="iros_pack_in_the_supermarket")
     
-    coord_transformer = URDFCoordinateTransformer("kinematics/configs/g1/G1_omnipicker.urdf")
+    kinematics_config_dir = Path(__file__).parent.parent / 'kinematics'
+    kinematics_config_dir = str(kinematics_config_dir.resolve())
+    coord_transformer = URDFCoordinateTransformer(f"{kinematics_config_dir}/configs/g1/G1_omnipicker.urdf")
     g1_ik_solver = G1RelaxSolver(
-        urdf_path="kinematics/configs/g1/G1_NO_GRIPPER.urdf",
-        config_path="kinematics/configs/g1/g1_solver.yaml",
+        urdf_path=f"{kinematics_config_dir}/configs/g1/G1_NO_GRIPPER.urdf",
+        config_path=f"{kinematics_config_dir}/configs/g1/g1_solver.yaml",
         arm="right",
         debug=False,
     )
