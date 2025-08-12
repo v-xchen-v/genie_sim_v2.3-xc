@@ -21,6 +21,8 @@ from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_to_joint_processor import EEtoJointProcessor
 from pathlib import Path
 
+import time
+
 def get_instruction(task_name):
 
     if task_name == "iros_clear_the_countertop_waste":
@@ -209,7 +211,7 @@ def infer(policy):
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 
                 state = np.array(act_raw.position)
-                # state = None
+                # state = None # if use model without state
 
                 input_processor = VLAInputProcessor()
                 curr_task_substep_index=0
@@ -234,7 +236,7 @@ def infer(policy):
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
                 
                 # send command from model to sim
-                execution_steps = [0]
+                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
                     print(f"Delta joint angles for step {step_index}: \n")
@@ -246,6 +248,7 @@ def infer(policy):
                     # Convert delta joint angles to joint state message
                     sim_ros_node.publish_joint_command(joint_cmd[step_index])
                     sim_ros_node.loop_rate.sleep()
+                    time.sleep(0.1)  # Sleep to allow the command to take effect
 
 def _action_task_substep_progress(action_raw):
     """
@@ -307,4 +310,5 @@ def get_policy():
 if __name__ == "__main__":
 
     policy = get_policy()
+    # policy = get_policy_wo_state()
     infer(policy)
