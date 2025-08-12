@@ -240,7 +240,6 @@ def infer(policy):
                     print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
                     # Convert delta joint angles to joint state message
-                    # do not move arm to debug
                     # sim_ros_node.publish_joint_command(joint_cmd[step_index])
                     sim_ros_node.loop_rate.sleep()
 

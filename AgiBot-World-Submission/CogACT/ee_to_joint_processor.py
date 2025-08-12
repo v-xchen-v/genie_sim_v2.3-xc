@@ -183,6 +183,7 @@ class EEtoJointProcessor:
             trans_key = "ROBOT_RIGHT_TRANS"
 
 
+
         # Extract rotation and translation from the VLA action dictionary
         rotation_delta = vla_act_dict.get(rot_key) # [num_steps, 3] euler angles
         translation_delta = vla_act_dict.get(trans_key) # [num_steps, 3]
@@ -205,6 +206,8 @@ class EEtoJointProcessor:
         
         curr_left_arm_joint_angles = curr_arm_joint_angles[:7]
         curr_right_arm_joint_angles = curr_arm_joint_angles[8:15]
+        self.last_left_arm_joint_angles = curr_left_arm_joint_angles if arm == "left" else self.last_left_arm_joint_angles
+        self.last_right_arm_joint_angles = curr_right_arm_joint_angles if arm == "right" else self.last_right_arm_joint_angles
         T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)[0]
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)[0]
         
@@ -255,8 +258,8 @@ class EEtoJointProcessor:
         translation_sum = curr_ee_trans
         for trans_delta in translation_delta:
             translation_sum += trans_delta
-            translation_list.append(translation_sum)
-            
+            translation_list.append(translation_sum.copy())
+        # We got the real cam coord based end-effector poses in 16 steps, now we need to convert them to arm base frame    
         
         poses = []
         T_ee_pose_arm_base_frame_list = []
@@ -267,15 +270,30 @@ class EEtoJointProcessor:
             pose_4x4 = np.eye(4)
             pose_4x4[:3, :3] = rot_matrix
             pose_4x4[:3, 3] = trans_vec
-            poses.append(pose_4x4)
+            poses.append(pose_4x4) # based on real cam coord
+
+            """Head_Came in head_link2 coord
+
+            tx, ty, tz: [0.0858, -0.04119, 0.0]
+
+            rx, ry, rz(degree): [-180.0, -90.0, 0.0]"""
+            T_head_link2_to_head_cam = np.eye(4)
+            T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
+            T_head_link2_to_head_cam[:3, :3] = R.from_euler(
+                'xyz', [-180.0, -90.0, 0.0], degrees=True
+            ).as_matrix()  # Rotation in XYZ order
+
+            # convert pose from real cam coord to head link2 coord
+            T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4
     
             # Get the end-effector pose in the arm base frame
             T_ee_pose_arm_base_frame = self.coord_transformer.transform_pose(
-                pose_4x4, "head_link2", "arm_r_base_link", joint_values=head_joint_cfg
+                pose_4x4, "head_link2", "arm_base_link", joint_values=head_joint_cfg
             )
             
-            # here we need to convert the pose from real cam to sim cam
-            T_ee_pose_arm_base_frame = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_arm_base_frame)
+            # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
+            # # here we need to convert the pose from real cam to sim cam
+            # T_ee_pose_arm_base_frame = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_arm_base_frame)
             
             T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame)
         
