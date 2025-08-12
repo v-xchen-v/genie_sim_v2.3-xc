@@ -237,14 +237,19 @@ class EEtoJointProcessor:
 
         tx, ty, tz: [0.0858, -0.04119, 0.0]
 
-        rx, ry, rz(degree): [-180.0, -90.0, 0.0]"""
+        rx, ry, rz(degree): [-180.0, -90.0, 0.0]
+        
+        rw, rx, ry, rz: [0.0, -0.70711, 0, 0.70711]"""
         T_head_link2_to_head_cam = np.eye(4)
         T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
-        T_head_link2_to_head_cam[:3, :3] = R.from_euler(
-            'xyz', [-180.0, -90.0, 0.0], degrees=True
-        ).as_matrix()  # Rotation in XYZ order
+        # T_head_link2_to_head_cam[:3, :3] = R.from_euler(
+        #     'xyz', [-180.0, -90.0, 0.0], degrees=True
+        # ).as_matrix()  # Rotation in XYZ order
+        T_head_link2_to_head_cam[:3, :3] = R.from_quat(
+            [0.0, -0.70711, 0, 0.70711], scalar_first=True
+        ).as_matrix()
 
-        T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam @ T_ee_pose_in_headlink2_coord)
+        T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_ee_pose_in_headlink2_coord
 
         # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
         # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
@@ -288,13 +293,18 @@ class EEtoJointProcessor:
 
             tx, ty, tz: [0.0858, -0.04119, 0.0]
 
-            rx, ry, rz(degree): [-180.0, -90.0, 0.0]"""
+            rx, ry, rz(degree): [-180.0, -90.0, 0.0]
+            
+            rw, rx, ry, rz: [0.0, -0.70711, 0, 0.70711]
+            """
             T_head_link2_to_head_cam = np.eye(4)
             T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
-            T_head_link2_to_head_cam[:3, :3] = R.from_euler(
-                'xyz', [-180.0, -90.0, 0.0], degrees=True
-            ).as_matrix()  # Rotation in XYZ order
-
+            # T_head_link2_to_head_cam[:3, :3] = R.from_euler(
+            #     'xyz', [-180.0, -90.0, 0.0], degrees=True
+            # ).as_matrix()  # Rotation in XYZ order
+            T_head_link2_to_head_cam[:3, :3] = R.from_quat(
+                [0.0, -0.70711, 0, 0.70711], scalar_first=True
+            ).as_matrix()
 
 
             # convert pose from real cam coord to head link2 coord
