@@ -201,13 +201,13 @@ def infer(policy):
                 # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 
-                # state = np.array(act_raw.position)
-                state = None
+                state = np.array(act_raw.position)
+                # state = None
 
                 input_processor = VLAInputProcessor()
                 curr_task_substep_index=0
                 input = input_processor.process(
-                    img_h, img_l, img_r, lang, state, curr_task_substep_index
+                    img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
                 )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
                 # if cfg.with_proprio:
@@ -285,8 +285,14 @@ def get_observations(img_h, img_l, img_r, lang, joint_positions):
     
     return dummy_obs
     
+def get_policy_wo_state():
+    PORT=15020 
+    ip = "10.190.172.212"
+    policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
+    return policy  # Placeholder for actual policy loading logic
+
 def get_policy():
-    PORT=15020 # 40k steps
+    PORT=14020 
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic

@@ -1,7 +1,16 @@
+import os
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 import numpy as np
 from PIL import Image
 import os,time, pickle
 from typing import Dict, Any
+from pathlib import Path
+
+from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
+from kinematics.g1_relax_ik import G1RelaxSolver
 
 
 class VLAInputProcessor:
@@ -23,8 +32,37 @@ class VLAInputProcessor:
             # Initialize log directory registry if logging is enabled
             self.task_name = "iros_pack_in_the_supermarket"  # Placeholder, can be set later
             self._log_dir_registry = {}
+            
+        self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
+        if not self.fk_urdf_path.exists():
+            raise FileNotFoundError(f"URDF file not found: {self.fk_urdf_path}")
+        self.fk_urdf_path = str(self.fk_urdf_path.resolve())
+        self.coord_transformer = URDFCoordinateTransformer(self.fk_urdf_path)
         
-    def process(self, img_h, img_l, img_r, lang, state, task_substep_index=0):
+        self.ik_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_NO_GRIPPER.urdf"
+        if not self.ik_urdf_path.exists():
+            raise FileNotFoundError(f"URDF file not found: {self.ik_urdf_path}")
+        self.ik_urdf_path = str(self.ik_urdf_path.resolve())
+        self.ik_config_path = Path(__file__).parent / "kinematics/configs/g1/g1_solver.yaml"
+        if not self.ik_config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {self.ik_config_path}")
+        self.ik_config_path = str(self.ik_config_path.resolve())
+        
+        # Initialize the IK solvers for both arms
+        self.left_arm_ik_solver = G1RelaxSolver(
+            urdf_path=self.ik_urdf_path,
+            config_path=self.ik_config_path,
+            arm="left"
+        )
+        self.right_arm_ik_solver = G1RelaxSolver(
+            urdf_path=self.ik_urdf_path,
+            config_path=self.ik_config_path,
+            arm="right"
+        )
+        self.last_left_arm_joint_angles = None
+        self.last_right_arm_joint_angles = None
+
+    def process(self, img_h, img_l, img_r, lang, state, task_substep_index=0, head_joint_cfg=None):
         """
         Process the input images, task description, and robot state.
         
@@ -43,17 +81,17 @@ class VLAInputProcessor:
         self.robot_state = state
         self.curr_task_substep_index = task_substep_index
         
-        return self.prepare_input()
+        return self.prepare_input(head_joint_cfg)
         
     
-    def prepare_input(self):
+    def prepare_input(self, head_joint_cfg=None):
         """
         Prepare the input for the VLA model.
         
         Returns:
             A dictionary containing the processed images, task description, and robot state.
         """
-        obs_dict = self.get_observations()
+        obs_dict = self.get_observations(head_joint_cfg)
         if self.log_obs:
             # Log observations if required
             self._log_observations(obs_dict, log_dir="./obs_logs")
@@ -70,7 +108,7 @@ class VLAInputProcessor:
         
         return input_data
         
-    def get_observations(self):
+    def get_observations(self, head_joint_cfg):
         """
         Get observations for the policy step.
         
@@ -86,6 +124,8 @@ class VLAInputProcessor:
         # Preprocess task instruction
         processed_task_instruction = self.preprocess_instruction(self.task_instruction, self.curr_task_substep_index)
         
+        # Preprocess robot state
+        processed_robot_state = self.preprocess_single_robot_state(self.robot_state, head_joint_cfg)
         # Construct the observations dictionary
         obs_dict = {
             "task_description": processed_task_instruction,
@@ -94,10 +134,181 @@ class VLAInputProcessor:
                 "head_left": head_left_img,
                 "head_right": head_right_img,
             },
-            "robot_state": self.robot_state,
+            "robot_state": processed_robot_state,
         }
         return obs_dict
     
+    def preprocess_robot_state(self, robot_joints_list, head_joint_cfg):
+        """
+        Preprocess the robot state which is joint angle to ee pose.
+        Ref:
+        "robot_state": {
+                "ROBOT_LEFT_TRANS": robot_ee_left_translation_in_head_cam.tolist(),
+                "ROBOT_LEFT_ROT_EULER": robot_ee_left_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_LEFT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
+                "ROBOT_RIGHT_TRANS": robot_ee_right_translation_in_head_cam.tolist(),
+                "ROBOT_RIGHT_ROT_EULER": robot_ee_right_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_RIGHT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
+            },
+            
+        Args:
+            robot_joints: a numpy array of joint angles in order consistent with ROS:
+            "idx21_arm_l_joint1",
+            "idx22_arm_l_joint2",
+            "idx23_arm_l_joint3",
+            "idx24_arm_l_joint4",
+            "idx25_arm_l_joint5",
+            "idx26_arm_l_joint6",
+            "idx27_arm_l_joint7",
+            "idx41_gripper_l_outer_joint1",
+            "idx61_arm_r_joint1",
+            "idx62_arm_r_joint2",
+            "idx63_arm_r_joint3",
+            "idx64_arm_r_joint4",
+            "idx65_arm_r_joint5",
+            "idx66_arm_r_joint6",
+            "idx67_arm_r_joint7",
+            "idx81_gripper_r_outer_joint1",
+        """
+        # Iterate through the joint angles and compute the end-effector poses
+        robot_states = []
+        for robot_joints in robot_joints_list:
+            single_robot_state = self.preprocess_single_robot_state(robot_joints, head_joint_cfg)
+            robot_states.append(single_robot_state)
+
+        # Combine robot states in list with key to one-dict format
+        combined_robot_state = {    
+            "ROBOT_LEFT_TRANS": [],
+            "ROBOT_LEFT_ROT_EULER": [],
+            "ROBOT_LEFT_GRIPPER": [],
+            "ROBOT_RIGHT_TRANS": [],
+            "ROBOT_RIGHT_ROT_EULER": [],
+            "ROBOT_RIGHT_GRIPPER": [],
+        }
+        
+        for state in robot_states:
+            combined_robot_state["ROBOT_LEFT_TRANS"].append(state["ROBOT_LEFT_TRANS"])
+            combined_robot_state["ROBOT_LEFT_ROT_EULER"].append(state["ROBOT_LEFT_ROT_EULER"])
+            combined_robot_state["ROBOT_LEFT_GRIPPER"].append(state["ROBOT_LEFT_GRIPPER"])
+            combined_robot_state["ROBOT_RIGHT_TRANS"].append(state["ROBOT_RIGHT_TRANS"])
+            combined_robot_state["ROBOT_RIGHT_ROT_EULER"].append(state["ROBOT_RIGHT_ROT_EULER"])
+            combined_robot_state["ROBOT_RIGHT_GRIPPER"].append(state["ROBOT_RIGHT_GRIPPER"])
+        # Convert lists to numpy arrays
+        for key in combined_robot_state:
+            combined_robot_state[key] = np.array(combined_robot_state[key], dtype=np.float32)
+        return combined_robot_state
+
+    def preprocess_single_robot_state(self, robot_joints, head_joint_cfg):
+        """
+        Preprocess a single robot state, which is joint angle to ee pose.
+        Ref:
+        "robot_state": {
+                "ROBOT_LEFT_TRANS": robot_ee_left_translation_in_head_cam.tolist(),
+                "ROBOT_LEFT_ROT_EULER": robot_ee_left_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_LEFT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
+                "ROBOT_RIGHT_TRANS": robot_ee_right_translation_in_head_cam.tolist(),
+                "ROBOT_RIGHT_ROT_EULER": robot_ee_right_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_RIGHT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
+            },
+        Args:
+            robot_joints: a numpy array of joint angles in order consistent with ROS:
+            "idx21_arm_l_joint1",
+            "idx22_arm_l_joint2",
+            "idx23_arm_l_joint3",
+            "idx24_arm_l_joint4",
+            "idx25_arm_l_joint5",
+            "idx26_arm_l_joint6",
+            "idx27_arm_l_joint7",
+            "idx41_gripper_l_outer_joint1",
+            "idx61_arm_r_joint1",
+            "idx62_arm_r_joint2",
+            "idx63_arm_r_joint3",
+            "idx64_arm_r_joint4",
+            "idx65_arm_r_joint5",
+            "idx66_arm_r_joint6",
+            "idx67_arm_r_joint7",
+            "idx81_gripper_r_outer_joint1",
+        """
+        left_arm_joints = robot_joints[:7]
+        right_arm_joints = robot_joints[8:15]
+        left_gripper_joint = robot_joints[7]
+        right_gripper_joint = robot_joints[15]
+        
+        # Transform left arm joints to end-effector pose
+        T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(left_arm_joints)
+        T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(right_arm_joints)
+        
+        # transform end-effector pose to arm base coord to head camera coord
+        T_left_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
+                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+            )
+        T_right_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
+                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+            )
+        
+        # convert from sim cam coord to real cam coord
+        T_left_ee_pose_in_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_left_ee_pose_in_headcam_coord)[0]
+        T_right_ee_pose_in_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_right_ee_pose_in_headcam_coord)[0]
+        
+        # Decompose the transformation matrices to get translation and rotation
+        left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_pose_in_headcam_coord)
+        right_ee_translation, right_ee_rotation = self.coord_transformer.decompose_transform(T_right_ee_pose_in_headcam_coord)
+        
+        # Convert rotation to Euler angles in XYZ order
+        left_ee_rotation_euler_xyz = np.array(left_ee_rotation)
+        right_ee_rotation_euler_xyz = np.array(right_ee_rotation)
+        
+        # Prepare the robot state dictionary
+        robot_state = {
+            "ROBOT_LEFT_TRANS": left_ee_translation.tolist(),
+            "ROBOT_LEFT_ROT_EULER": left_ee_rotation_euler_xyz.tolist(),
+            "ROBOT_LEFT_GRIPPER": np.array([left_gripper_joint]).tolist(),
+            "ROBOT_RIGHT_TRANS": right_ee_translation.tolist(),
+            "ROBOT_RIGHT_ROT_EULER": right_ee_rotation_euler_xyz.tolist(),
+            "ROBOT_RIGHT_GRIPPER": np.array([right_gripper_joint]).tolist(),
+        }
+        return robot_state
+    
+    
+    def T_obj_in_simcam_to_T_obj_in_realcam(
+        self,
+        # T_simcam_in_world: np.ndarray,
+        T_obj_in_simcam: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Convert object pose from simcam frame to realcam frame.
+
+        Inputs:
+            T_simcam_in_world: 4x4 pose of simcam in world coordinates
+            T_obj_in_simcam: 4x4 pose of object in simcam coordinates
+
+        Output:
+            T_obj_in_realcam: 4x4 pose of object in realcam coordinates
+        """
+        # The vla model output action is in sim camera coordinate, but we should executa in sim camera then sim world cam
+        R_real2sim = np.array(
+            [
+                [1, 0, 0],  # realcam +X → simcam +X
+                [0, -1, 0],  # realcam +Y → simcam -Y
+                [0, 0, -1],  # realcam +Z → simcam -Z
+            ]
+        )
+        R_sim2real = R_real2sim.T
+        # np.array(
+        #     [
+        #         [1, 0,  0],
+        #         [0, 0,  1],
+        #         [0, -1, 0],
+        #     ]
+        # )
+
+        T_sim2real = np.eye(4)
+        T_sim2real[:3, :3] = R_sim2real
+
+        T_real2sim = np.linalg.inv(T_sim2real)  # T_real2sim
+        T_obj_in_realcam = T_real2sim @ T_obj_in_simcam
+        return T_obj_in_realcam
+
     def preprocess_instruction(self, lang, substep_index=0):
         """
         Preprocess the task instruction.
