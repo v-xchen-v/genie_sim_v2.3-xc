@@ -347,7 +347,7 @@ class EEtoJointProcessor:
 
             # T_ee_pose_arm_base_frame = T_arm_base_to_head_link2_in_usd @ T_ee_pose_in_headlink2_coord
 
-            T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame2)
+            T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame)
         
         # Got ee poses in arm base frame, now solve IK for each pose
         if arm == "left":
@@ -367,12 +367,12 @@ class EEtoJointProcessor:
             joint_angles = ik_solver.solve_from_pose(T_ee)
 
             # optional: compute the ee pose error
-            computed_ee_pose = ik_solver.compute_fk(joint_angles)  # update the FK cache
+            # computed_ee_pose = ik_solver.compute_fk(joint_angles)  # update the FK cache
             # compute T_ee and computed_ee_pose
-            T_ee_computed = computed_ee_pose[0]
-            T_ee_error = T_ee_computed @ np.linalg.inv(T_ee)  # Error in pose
-            print(f"End-effector pose error for {arm} arm: {T_ee_error[:3, 3]}")  # Translation error
-            print(f"End-effector rotation error for {arm} arm: {R.from_matrix(T_ee_error[:3, :3]).as_euler('xyz', degrees=True)}")  # Rotation error
+            # T_ee_computed = computed_ee_pose[0]
+            # T_ee_error = T_ee_computed @ np.linalg.inv(T_ee)  # Error in pose
+            # print(f"End-effector pose error for {arm} arm: {T_ee_error[:3, 3]}")  # Translation error
+            # print(f"End-effector rotation error for {arm} arm: {R.from_matrix(T_ee_error[:3, :3]).as_euler('xyz', degrees=True)}")  # Rotation error
 
             joint_angles_list.append(joint_angles)
             
