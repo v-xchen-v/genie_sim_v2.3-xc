@@ -48,6 +48,8 @@ def get_instruction(task_name):
 
     return lang
 
+        # "idx01_body_joint1": 0.3,
+        # "idx02_body_joint2": 0.52359877,
 def get_head_joint_cfg(task_name):
     # Define your joint configurations per task
     task_joint_cfgs = {
@@ -68,6 +70,8 @@ def get_head_joint_cfg(task_name):
             "idx12_head_joint2": 0.384
         },
         "iros_pack_in_the_supermarket": {
+            "idx01_body_joint1": 0.3,
+            "idx02_body_joint2": 0.52359877,
             "idx11_head_joint1": 0.0,
             "idx12_head_joint2": 0.43633231
         },
@@ -240,7 +244,7 @@ def infer(policy):
                     print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
                     # Convert delta joint angles to joint state message
-                    # sim_ros_node.publish_joint_command(joint_cmd[step_index])
+                    sim_ros_node.publish_joint_command(joint_cmd[step_index])
                     sim_ros_node.loop_rate.sleep()
 
 def _action_task_substep_progress(action_raw):

@@ -211,23 +211,27 @@ class EEtoJointProcessor:
         T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)[0]
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)[0]
         
-        # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
-        # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
-        # T_left_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
-        # T_right_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
+
         
         # convert into head cam coord frame
         if arm == "left":
             # since URDF only have head_link2 but not cam link so that we first transform to head_link2
             # then transform to head cam link
-            T_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            )
+            # T_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
+            #     T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
+            # )
+
+            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_pose_in_armbase_coord
+            # print("T_ee_pose_in_headlink2_coord:", T_ee_pose_in_headlink2_coord)
             
         else:  # arm == "right"
-            T_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            )
+            # T_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
+            #     T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
+            # )
+            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_pose_in_armbase_coord
+            # print("T_ee_pose_in_headlink2_coord:", T_ee_pose_in_headlink2_coord)
             
         """Head_Came in head_link2 coord
 
@@ -242,6 +246,10 @@ class EEtoJointProcessor:
 
         T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam @ T_ee_pose_in_headlink2_coord)
 
+        # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
+        # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
+        # T_left_ee_pose_in_armbase_coord = self.realcam_to_simcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
+        # T_right_ee_pose_in_armbase_coord = self.realcam_to_simcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
 
         curr_ee_rot = T_ee_pose_in_headcam_coord[:3, :3] # [3x3] rotation matrix
         curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
@@ -270,6 +278,10 @@ class EEtoJointProcessor:
             pose_4x4 = np.eye(4)
             pose_4x4[:3, :3] = rot_matrix
             pose_4x4[:3, 3] = trans_vec
+
+            # # # here we need to convert the pose from real cam to sim cam
+            # pose_4x4 = self.realcam_to_simcam(T_obj_in_realcam=pose_4x4)
+
             poses.append(pose_4x4) # based on real cam coord
 
             """Head_Came in head_link2 coord
@@ -283,19 +295,49 @@ class EEtoJointProcessor:
                 'xyz', [-180.0, -90.0, 0.0], degrees=True
             ).as_matrix()  # Rotation in XYZ order
 
+
+
             # convert pose from real cam coord to head link2 coord
             T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4
     
+
             # Get the end-effector pose in the arm base frame
-            T_ee_pose_arm_base_frame = self.coord_transformer.transform_pose(
-                pose_4x4, "head_link2", "arm_base_link", joint_values=head_joint_cfg
-            )
-            
-            # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
-            # # here we need to convert the pose from real cam to sim cam
-            # T_ee_pose_arm_base_frame = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_arm_base_frame)
-            
-            T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame)
+            # T_ee_pose_arm_base_frame_wa = self.coord_transformer.transform_pose(
+            #     T_ee_pose_in_headlink2_coord, "head_link2", "arm_base_link", joint_values=head_joint_cfg
+            # )
+            # head_angles = [head_joint_cfg.get("idx11_head_joint1", 0.0), head_joint_cfg.get("idx12_head_joint2", 0.0)]
+            # T_arm_base_link_to_head_link2 = self.head_ik_solver.compute_fk(head_angles)
+            # T_ee_pose_arm_base_frame2 = T_arm_base_link_to_head_link2 @ T_ee_pose_in_headlink2_coord
+            T_headlink2_to_armbase = self.coord_transformer.relative_transform("head_link2", "arm_base_link", head_joint_cfg)
+            T_ee_pose_arm_base_frame = np.linalg.inv(T_headlink2_to_armbase) @ T_ee_pose_in_headlink2_coord
+
+            # """IN USD for iros_pack_in_the_supermarket:
+            # arm_base_link:
+            # tx, ty, tz: [0.2835, 0.0, 1.21263]
+            # rx, ry, rz(degree): [0.0, 29.999, 0.0]
+
+            # head_link2:
+            # tx, ty, tz: [0.42504, 0.0, 1.35731]
+            # rx, ry, rz(degree): [-90.0, 0.0, 54.99]
+            # """
+            # T_arm_base_link_in_usd = np.eye(4)
+            # T_arm_base_link_in_usd[:3, 3] = np.array([0.2835, 0.0, 1.21263])  # Translation
+            # T_arm_base_link_in_usd[:3, :3] = R.from_euler(
+            #     'xyz', [0.0, 29.999, 0.0], degrees=True
+            # ).as_matrix()  # Rotation in XYZ order
+
+            # T_head_link2_in_usd = np.eye(4)
+            # T_head_link2_in_usd[:3, 3] = np.array([0.42504, 0.0, 1.35731])  # Translation
+            # T_head_link2_in_usd[:3, :3] = R.from_euler(
+            #     'xyz', [-90.0, 0.0, 54.99], degrees=True
+            # ).as_matrix()  # Rotation in XYZ order
+
+            # # Convert the pose from head link2 coord to arm base frame
+            # T_arm_base_to_head_link2_in_usd = np.linalg.inv(T_arm_base_link_in_usd) @ T_head_link2_in_usd
+
+            # T_ee_pose_arm_base_frame = T_arm_base_to_head_link2_in_usd @ T_ee_pose_in_headlink2_coord
+
+            T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame2)
         
         # Got ee poses in arm base frame, now solve IK for each pose
         if arm == "left":
@@ -308,10 +350,20 @@ class EEtoJointProcessor:
             #  set last joint state for the solver
             if arm == "left" and self.last_left_arm_joint_angles is not None:
                 ik_solver.set_current_state(self.last_left_arm_joint_angles)
+                ik_solver.compute_fk(self.last_left_arm_joint_angles)  # update the FK cache
             elif arm == "right" and self.last_right_arm_joint_angles is not None:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             joint_angles = ik_solver.solve_from_pose(T_ee)
+
+            # optional: compute the ee pose error
+            computed_ee_pose = ik_solver.compute_fk(joint_angles)  # update the FK cache
+            # compute T_ee and computed_ee_pose
+            T_ee_computed = computed_ee_pose[0]
+            T_ee_error = T_ee_computed @ np.linalg.inv(T_ee)  # Error in pose
+            print(f"End-effector pose error for {arm} arm: {T_ee_error[:3, 3]}")  # Translation error
+            print(f"End-effector rotation error for {arm} arm: {R.from_matrix(T_ee_error[:3, :3]).as_euler('xyz', degrees=True)}")  # Rotation error
+
             joint_angles_list.append(joint_angles)
             
             # update the last joint angles for the solver

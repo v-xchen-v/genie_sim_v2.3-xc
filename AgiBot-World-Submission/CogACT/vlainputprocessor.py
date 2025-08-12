@@ -240,12 +240,16 @@ class VLAInputProcessor:
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(right_arm_joints)
         
         # transform end-effector pose to arm base coord to head camera coord
-        T_left_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            )[0]
-        T_right_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            )[0]
+        T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", joint_values=head_joint_cfg)
+        # T_left_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
+        #         T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
+        #     )[0]
+        # T_right_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
+        #         T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
+        #     )[0]
+        T_left_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_pose_in_armbase_coord[0]
+        T_right_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_pose_in_armbase_coord[0]
+        
         """Head_Came in head_link2 coord
 
         tx, ty, tz: [0.0858, -0.04119, 0.0]
@@ -257,13 +261,13 @@ class VLAInputProcessor:
             'xyz', [-180.0, -90.0, 0.0], degrees=True
         ).as_matrix()  # Rotation in XYZ order
 
-        T_left_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam @ T_left_ee_pose_in_headlink2_coord)
-        T_right_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam @ T_right_ee_pose_in_headlink2_coord)
+        T_left_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_left_ee_pose_in_headlink2_coord
+        T_right_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_right_ee_pose_in_headlink2_coord
 
 
         # # convert from sim cam coord to real cam coord, since urdf consistent with real cam coord
-        # T_left_ee_pose_in_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_left_ee_pose_in_headcam_coord)
-        # T_right_ee_pose_in_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_right_ee_pose_in_headcam_coord)
+        T_left_ee_pose_in_headcam_coord2= self.T_obj_in_simcam_to_T_obj_in_realcam(T_left_ee_pose_in_headcam_coord)
+        T_right_ee_pose_in_headcam_coord2= self.T_obj_in_simcam_to_T_obj_in_realcam(T_right_ee_pose_in_headcam_coord)
         
         # Decompose the transformation matrices to get translation and rotation
         left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_pose_in_headcam_coord)
