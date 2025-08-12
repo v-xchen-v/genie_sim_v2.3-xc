@@ -240,10 +240,10 @@ class VLAInputProcessor:
         
         # transform end-effector pose to arm base coord to head camera coord
         T_left_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+                T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
             )
         T_right_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+                T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
             )
         
         # convert from sim cam coord to real cam coord
