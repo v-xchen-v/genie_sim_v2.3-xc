@@ -125,8 +125,12 @@ class VLAInputProcessor:
         # Preprocess task instruction
         processed_task_instruction = self.preprocess_instruction(self.task_instruction, self.curr_task_substep_index)
         
-        # Preprocess robot state
-        processed_robot_state = self.preprocess_single_robot_state(self.robot_state, head_joint_cfg)
+        if self.robot_state is not None:
+            # Preprocess robot state
+            processed_robot_state = self.preprocess_single_robot_state(self.robot_state, head_joint_cfg)
+        else:
+            processed_robot_state = None
+            
         # Construct the observations dictionary
         obs_dict = {
             "task_description": processed_task_instruction,

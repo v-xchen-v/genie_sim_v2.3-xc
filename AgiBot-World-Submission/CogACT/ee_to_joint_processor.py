@@ -254,10 +254,11 @@ class EEtoJointProcessor:
         # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
         # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
         # T_left_ee_pose_in_armbase_coord = self.realcam_to_simcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
-        # T_right_ee_pose_in_armbase_coord = self.realcam_to_simcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
+        # T_ee_pose_in_headcam_coord = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_in_headcam_coord) # wa
+        T_ee_pose_in_real_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_ee_pose_in_headcam_coord) # wa
 
-        curr_ee_rot = T_ee_pose_in_headcam_coord[:3, :3] # [3x3] rotation matrix
-        curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
+        curr_ee_rot = T_ee_pose_in_real_headcam_coord[:3, :3] # [3x3] rotation matrix
+        curr_ee_trans = T_ee_pose_in_real_headcam_coord[:3, 3] # [tx, ty, tz]
 
 
         rotation_list = []
@@ -285,9 +286,13 @@ class EEtoJointProcessor:
             pose_4x4[:3, 3] = trans_vec
 
             # # # here we need to convert the pose from real cam to sim cam
-            # pose_4x4 = self.realcam_to_simcam(T_obj_in_realcam=pose_4x4)
 
-            poses.append(pose_4x4) # based on real cam coord
+            # convert pose from real cam to sim cam coord
+            pose_4x4_sim_cam_base= self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=pose_4x4)
+
+            poses.append(pose_4x4_sim_cam_base) # based on real cam coord
+
+            
 
             """Head_Came in head_link2 coord
 
@@ -308,7 +313,7 @@ class EEtoJointProcessor:
 
 
             # convert pose from real cam coord to head link2 coord
-            T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4
+            T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4_sim_cam_base
     
 
             # Get the end-effector pose in the arm base frame
@@ -356,20 +361,29 @@ class EEtoJointProcessor:
             ik_solver = self.right_arm_ik_solver
         
         joint_angles_list = []
+        # T_ee_computed_list = []
         for T_ee in T_ee_pose_arm_base_frame_list:
             #  set last joint state for the solver
             if arm == "left" and self.last_left_arm_joint_angles is not None:
                 ik_solver.set_current_state(self.last_left_arm_joint_angles)
-                ik_solver.compute_fk(self.last_left_arm_joint_angles)  # update the FK cache
             elif arm == "right" and self.last_right_arm_joint_angles is not None:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             joint_angles = ik_solver.solve_from_pose(T_ee)
+            # ik_solver.update_target(
+            #     pos=T_ee[:3, 3],
+            #     quat=R.from_matrix(T_ee[:3, :3]).as_quat()
+            # )
+            # joint_angles = ik_solver.solve()
 
-            # optional: compute the ee pose error
+            # # optional: compute the ee pose error
             # computed_ee_pose = ik_solver.compute_fk(joint_angles)  # update the FK cache
-            # compute T_ee and computed_ee_pose
+            # # compute T_ee and computed_ee_pose
             # T_ee_computed = computed_ee_pose[0]
+            # T_ee_computed_list.append(T_ee_computed)
+            # # err trans
+            # trans_err = T_ee_computed[:3, 3] - T_ee[:3, 3]  # Translation error
+            # print(f"IK trans err: {trans_err}")
             # T_ee_error = T_ee_computed @ np.linalg.inv(T_ee)  # Error in pose
             # print(f"End-effector pose error for {arm} arm: {T_ee_error[:3, 3]}")  # Translation error
             # print(f"End-effector rotation error for {arm} arm: {R.from_matrix(T_ee_error[:3, :3]).as_euler('xyz', degrees=True)}")  # Rotation error
@@ -381,7 +395,11 @@ class EEtoJointProcessor:
                 self.last_left_arm_joint_angles = joint_angles
             else:  # arm == "right"
                 self.last_right_arm_joint_angles = joint_angles
-        
+
+        # # for debugging
+        # T_ee_computed_trans = np.array([T[:3, 3] for T in T_ee_computed_list])  # [num_steps, 3]
+        # print(f"Computed end-effector poses for {arm} arm: \n{T_ee_computed_trans}")
+
         # Convert list of joint angles to a numpy array
         joint_angles_array = np.array(joint_angles_list)
         
