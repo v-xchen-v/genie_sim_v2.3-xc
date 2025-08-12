@@ -208,21 +208,38 @@ class EEtoJointProcessor:
         T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)[0]
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)[0]
         
-        # the readed joint angles is from sim but delta predicted is based on real camera coordinate
-        T_left_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
-        T_right_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
+        # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
+        # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
+        # T_left_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
+        # T_right_ee_pose_in_armbase_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_right_ee_pose_in_armbase_coord)
         
         # convert into head cam coord frame
         if arm == "left":
-            T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_left_ee_pose_in_armbase_coord, "arm_l_base_link", "head_link2", joint_values=head_joint_cfg
+            # since URDF only have head_link2 but not cam link so that we first transform to head_link2
+            # then transform to head cam link
+            T_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
+                T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
             )
             
         else:  # arm == "right"
-            T_ee_pose_in_headcam_coord = self.coord_transformer.transform_pose(
-                T_right_ee_pose_in_armbase_coord, "arm_r_base_link", "head_link2", joint_values=head_joint_cfg
+            T_ee_pose_in_headlink2_coord = self.coord_transformer.transform_pose(
+                T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
             )
             
+        """Head_Came in head_link2 coord
+
+        tx, ty, tz: [0.0858, -0.04119, 0.0]
+
+        rx, ry, rz(degree): [-180.0, -90.0, 0.0]"""
+        T_head_link2_to_head_cam = np.eye(4)
+        T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
+        T_head_link2_to_head_cam[:3, :3] = R.from_euler(
+            'xyz', [-180.0, -90.0, 0.0], degrees=True
+        ).as_matrix()  # Rotation in XYZ order
+
+        T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam @ T_ee_pose_in_headlink2_coord)
+
+
         curr_ee_rot = T_ee_pose_in_headcam_coord[:3, :3] # [3x3] rotation matrix
         curr_ee_trans = T_ee_pose_in_headcam_coord[:3, 3] # [tx, ty, tz]
 
