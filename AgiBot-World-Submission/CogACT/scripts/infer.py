@@ -122,42 +122,13 @@ def infer(policy):
     count = 0
     SIM_INIT_TIME = 10
 
-    lang = get_instruction(task_name="iros_pack_in_the_supermarket")
-    # lang = get_instruction(task_name="iros_restock_supermarket_items")
+    task_name = "iros_stamp_the_seal"
+    lang = get_instruction(task_name=task_name)
+    head_joint_cfg = get_head_joint_cfg(task_name=task_name)
     
     kinematics_config_dir = Path(__file__).parent.parent / 'kinematics'
     kinematics_config_dir = str(kinematics_config_dir.resolve())
     coord_transformer = URDFCoordinateTransformer(f"{kinematics_config_dir}/configs/g1/G1_omnipicker.urdf")
-    g1_ik_solver = G1RelaxSolver(
-        urdf_path=f"{kinematics_config_dir}/configs/g1/G1_NO_GRIPPER.urdf",
-        config_path=f"{kinematics_config_dir}/configs/g1/g1_solver.yaml",
-        arm="right",
-        debug=False,
-    )
-    # # Optional: Sync target with initial joint configuration
-    # initial_joint_angles = np.zeros(7)
-    # g1_ik_solver.set_current_state(initial_joint_angles)
-
-    # # Example 1: Solve from 4x4 SE(3) pose
-    # pose_matrix = np.eye(4)
-    # pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
-    # joint_solution = g1_ik_solver.solve_from_pose(pose_matrix)
-    # print("Joint solution from SE(3) pose:\n", joint_solution)
-
-    # # Example 2: Solve from position and quaternion
-    # position = np.array([0.4, 0.1, 0.3])
-    # quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
-    # joint_solution = g1_ik_solver.solve_from_pos_quat(position, quaternion_xyzw)
-    # print("Joint solution from pos + quat:\n", joint_solution)
-
-    # # Example 3: Forward Kinematics
-    # print("\n=== Forward Kinematics ===")
-    # test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
-    # ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
-    # print("End-effector pose from FK:\n", ee_pose)
-
-    head_joint_cfg = get_head_joint_cfg(task_name="iros_restock_supermarket_items")
-    # head_joint_cfg = get_head_joint_cfg(task_name="iros_restock_supermarket_items")
 
     # arm_base_link -> head_link2
     T_armr_to_headcam = coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
