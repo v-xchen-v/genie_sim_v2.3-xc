@@ -62,8 +62,8 @@ def get_head_joint_cfg(task_name):
         },
         "iros_restock_supermarket_items": {
             "idx11_head_joint1": 0.,
-            # "idx12_head_joint2": 0.3839745594177246
-            "idx12_head_joint2": 0.43633231, # not consiste with GUI joint state and iros but it works, find it by seting task to pack_in_the supermarket but work well
+            "idx12_head_joint2": 0.3839745594177246
+            # "idx12_head_joint2": 0.43633231, # not consiste with GUI joint state and iros but it works, find it by seting task to pack_in_the supermarket but work well
         },
         "iros_clear_table_in_the_restaurant": {
             "idx11_head_joint1": 0.0,
@@ -156,21 +156,21 @@ def infer(policy):
     # ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
     # print("End-effector pose from FK:\n", ee_pose)
 
-    head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
+    head_joint_cfg = get_head_joint_cfg(task_name="iros_restock_supermarket_items")
     # head_joint_cfg = get_head_joint_cfg(task_name="iros_restock_supermarket_items")
 
-    # arm_r_base_link -> head_link2
-    T_armr_to_headcam = coord_transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
-    T_headcam_to_armr = coord_transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
+    # arm_base_link -> head_link2
+    T_armr_to_headcam = coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_armr = coord_transformer.reverse_transform("arm_base_link", "head_link2", head_joint_cfg)
 
-    # arm_l_base_link -> head_link2
-    T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-    T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    # # arm_l_base_link -> head_link2
+    # T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    # T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
 
-    print("arm_r_base_link -> head_link2:\n", T_armr_to_headcam)
-    print("head_link2 -> arm_r_base_link:\n", T_headcam_to_armr)
-    print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
-    print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
+    print("arm_base_link -> head_link2:\n", T_armr_to_headcam)
+    print("head_link2 -> arm_base_link:\n", T_headcam_to_armr)
+    # print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
+    # print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
 
     # # Example point transformation
     # point_in_head = [0.1, 0.0, 0.0]
