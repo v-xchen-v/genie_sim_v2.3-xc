@@ -123,7 +123,8 @@ def infer(policy):
     SIM_INIT_TIME = 10
 
     # task_name = "iros_stamp_the_seal"
-    task_name = "iros_pack_in_the_supermarket"
+    # task_name = "iros_pack_in_the_supermarket"
+    task_name = "iros_restock_supermarket_items"
     lang = get_instruction(task_name=task_name)
     head_joint_cfg = get_head_joint_cfg(task_name=task_name)
     
@@ -218,8 +219,8 @@ def infer(policy):
 
 
                 # send command from model to sim
-                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                # execution_steps = [0, 1, 2, 3]
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                execution_steps = [0, 1, 2, 3]
                 # execution_steps = [0]
                 # execution_steps = [0, 1]
                 # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
@@ -240,8 +241,8 @@ def infer(policy):
                         sim_ros_node.publish_joint_command(
                             joint_cmd[step_index * num_ik_iterations + i].tolist()
                         )
-                    # sim_ros_node.publish_joint_command(joint_cmd[step_index])
-                    sim_ros_node.loop_rate.sleep()
+                        # sim_ros_node.publish_joint_command(joint_cmd[step_index])
+                        sim_ros_node.loop_rate.sleep()
 
 def _action_task_substep_progress(action_raw):
     """
