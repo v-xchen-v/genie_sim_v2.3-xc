@@ -91,6 +91,7 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
+        num_ik_iterations = 10
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
             np.tile(left_gripper_joint.reshape(-1, 1), (10, 1)),
@@ -274,7 +275,7 @@ class EEtoJointProcessor:
         rotation_sum = curr_ee_rot
         translation_list = []
         for rot_delta in rotation_delta:
-            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() * rotation_sum
+            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() @ rotation_sum
             rotation_list.append(rotation_sum)
 
         translation_list = []
