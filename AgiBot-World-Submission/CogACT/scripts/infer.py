@@ -213,6 +213,10 @@ def infer(policy):
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
 
+                if len(state) == 0:
+                    print("No joint state received, skipping iteration.")
+                    continue
+
                 input_processor = VLAInputProcessor()
                 curr_task_substep_index=0
                 input = input_processor.process(
@@ -237,6 +241,10 @@ def infer(policy):
                 
                 # send command from model to sim
                 execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # execution_steps = [0, 1, 2, 3]
+                # execution_steps = [0]
+                # execution_steps = [0, 1]
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
                     print(f"Delta joint angles for step {step_index}: \n")
