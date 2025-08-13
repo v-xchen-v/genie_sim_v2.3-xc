@@ -29,6 +29,7 @@ def get_instruction(task_name):
         lang = "Pick up the yellow functional beverage can on the table with the left arm.;Threw the yellow functional beverage can into the trash can with the left arm.;Pick up the green carbonated beverage can on the table with the right arm.;Threw the green carbonated beverage can into the trash can with the right arm."
     elif task_name == "iros_restock_supermarket_items":
         lang = "Pick up the brown plum juice from the restock box with the right arm.;Place the brown plum juice on the shelf where the brown plum juice is located with the right arm."
+        # lang = "Pick up the grape juice on the table with the right arm.;Place the grape juice on the shelf where the grape juice is located with the right arm."
     elif task_name == "iros_clear_table_in_the_restaurant":
         lang = "Pick up the bowl on the table near the right arm with the right arm.;Place the bowl on the plate on the table with the right arm."
     elif task_name == "iros_stamp_the_seal":
@@ -62,6 +63,7 @@ def get_head_joint_cfg(task_name):
         "iros_restock_supermarket_items": {
             "idx11_head_joint1": 0.,
             "idx12_head_joint2": 0.3839745594177246
+            # "idx12_head_joint2": 0.43633231, # not consiste with GUI joint state and iros but it works, find it by seting task to pack_in_the supermarket but work well
         },
         "iros_clear_table_in_the_restaurant": {
             "idx11_head_joint1": 0.0,
@@ -72,10 +74,9 @@ def get_head_joint_cfg(task_name):
             "idx12_head_joint2": 0.384
         },
         "iros_pack_in_the_supermarket": {
-            "idx01_body_joint1": 0.3,
-            "idx02_body_joint2": 0.52359877,
             "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43633231
+            "idx12_head_joint2": 0.43633231,
+            # "idx12_head_joint2": 0.3839745594177246, 
         },
         "iros_heat_the_food_in_the_microwave": {
             "idx11_head_joint1": 0.0,
@@ -121,53 +122,26 @@ def infer(policy):
     count = 0
     SIM_INIT_TIME = 10
 
-    lang = get_instruction(task_name="iros_pack_in_the_supermarket")
+    task_name = "iros_stamp_the_seal"
+    lang = get_instruction(task_name=task_name)
+    head_joint_cfg = get_head_joint_cfg(task_name=task_name)
     
     kinematics_config_dir = Path(__file__).parent.parent / 'kinematics'
     kinematics_config_dir = str(kinematics_config_dir.resolve())
     coord_transformer = URDFCoordinateTransformer(f"{kinematics_config_dir}/configs/g1/G1_omnipicker.urdf")
-    g1_ik_solver = G1RelaxSolver(
-        urdf_path=f"{kinematics_config_dir}/configs/g1/G1_NO_GRIPPER.urdf",
-        config_path=f"{kinematics_config_dir}/configs/g1/g1_solver.yaml",
-        arm="right",
-        debug=False,
-    )
-    # # Optional: Sync target with initial joint configuration
-    # initial_joint_angles = np.zeros(7)
-    # g1_ik_solver.set_current_state(initial_joint_angles)
 
-    # # Example 1: Solve from 4x4 SE(3) pose
-    # pose_matrix = np.eye(4)
-    # pose_matrix[:3, 3] = [0.3, 0.2, 0.5]  # Set translation only
-    # joint_solution = g1_ik_solver.solve_from_pose(pose_matrix)
-    # print("Joint solution from SE(3) pose:\n", joint_solution)
+    # arm_base_link -> head_link2
+    T_armr_to_headcam = coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+    T_headcam_to_armr = coord_transformer.reverse_transform("arm_base_link", "head_link2", head_joint_cfg)
 
-    # # Example 2: Solve from position and quaternion
-    # position = np.array([0.4, 0.1, 0.3])
-    # quaternion_xyzw = np.array([0, 0, 0, 1])  # Identity quaternion
-    # joint_solution = g1_ik_solver.solve_from_pos_quat(position, quaternion_xyzw)
-    # print("Joint solution from pos + quat:\n", joint_solution)
+    # # arm_l_base_link -> head_link2
+    # T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
+    # T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
 
-    # # Example 3: Forward Kinematics
-    # print("\n=== Forward Kinematics ===")
-    # test_joint_angles = np.array([0.1, -0.2, 0.3, -0.1, 0.5, -0.4, 0.2])
-    # ee_pose = g1_ik_solver.compute_fk(test_joint_angles)
-    # print("End-effector pose from FK:\n", ee_pose)
-
-    head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
-
-    # arm_r_base_link -> head_link2
-    T_armr_to_headcam = coord_transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
-    T_headcam_to_armr = coord_transformer.reverse_transform("arm_r_base_link", "head_link2", head_joint_cfg)
-
-    # arm_l_base_link -> head_link2
-    T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-    T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-
-    print("arm_r_base_link -> head_link2:\n", T_armr_to_headcam)
-    print("head_link2 -> arm_r_base_link:\n", T_headcam_to_armr)
-    print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
-    print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
+    print("arm_base_link -> head_link2:\n", T_armr_to_headcam)
+    print("head_link2 -> arm_base_link:\n", T_headcam_to_armr)
+    # print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
+    # print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
 
     # # Example point transformation
     # point_in_head = [0.1, 0.0, 0.0]
@@ -213,6 +187,10 @@ def infer(policy):
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
 
+                if len(state) == 0:
+                    print("No joint state received, skipping iteration.")
+                    continue
+
                 input_processor = VLAInputProcessor()
                 curr_task_substep_index=0
                 input = input_processor.process(
@@ -227,6 +205,8 @@ def infer(policy):
                 
                 if action:
                     task_substep_progress = _action_task_substep_progress(action)
+                    print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
+                    print(f"Instruction: {input['task_description']}")
                     if task_substep_progress[0][0] > 0.95:
                         curr_task_substep_index += 1
                         input_processor.curr_task_substep_index = curr_task_substep_index
@@ -237,18 +217,24 @@ def infer(policy):
                 
                 # send command from model to sim
                 execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # execution_steps = [0, 1, 2, 3]
+                # execution_steps = [0]
+                # execution_steps = [0, 1]
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
-                    print(f"Delta joint angles for step {step_index}: \n")
-                    print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
-                    print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
-                    print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
-                    print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
+                    # print(f"Delta joint angles for step {step_index}: \n")
+                    # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
+                    # print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
+                    # print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
+                    # print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
+                    # print gripper joint angles in degrees
+                    print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(delta_joint_angles[7])}, Right gripper joint angle: {np.rad2deg(delta_joint_angles[15])}")
+
                     # Convert delta joint angles to joint state message
                     sim_ros_node.publish_joint_command(joint_cmd[step_index])
                     sim_ros_node.loop_rate.sleep()
-                    time.sleep(0.1)  # Sleep to allow the command to take effect
 
 def _action_task_substep_progress(action_raw):
     """
@@ -303,6 +289,7 @@ def get_policy_wo_state():
 
 def get_policy():
     PORT=14020 
+    # PORT=14030
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic

@@ -154,7 +154,10 @@ class EEtoJointProcessor:
         print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
         
         # convert to joint command
-        gripper_cmd = np.clip(gripper_joint * 120/70.0, 0, 1)  # [num_steps, 1]
+        # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
+        ratio = 1.0/0.7853981633974483  # for testing
+        gripper_cmd = np.clip(gripper_joint * ratio, 0, 1)  # [num_steps, 1]
+        # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
         print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
         
         return gripper_cmd
