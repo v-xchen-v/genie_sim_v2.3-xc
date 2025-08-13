@@ -29,6 +29,7 @@ def get_instruction(task_name):
         lang = "Pick up the yellow functional beverage can on the table with the left arm.;Threw the yellow functional beverage can into the trash can with the left arm.;Pick up the green carbonated beverage can on the table with the right arm.;Threw the green carbonated beverage can into the trash can with the right arm."
     elif task_name == "iros_restock_supermarket_items":
         lang = "Pick up the brown plum juice from the restock box with the right arm.;Place the brown plum juice on the shelf where the brown plum juice is located with the right arm."
+        # lang = "Pick up the grape juice on the table with the right arm.;Place the grape juice on the shelf where the grape juice is located with the right arm."
     elif task_name == "iros_clear_table_in_the_restaurant":
         lang = "Pick up the bowl on the table near the right arm with the right arm.;Place the bowl on the plate on the table with the right arm."
     elif task_name == "iros_stamp_the_seal":
@@ -61,7 +62,8 @@ def get_head_joint_cfg(task_name):
         },
         "iros_restock_supermarket_items": {
             "idx11_head_joint1": 0.,
-            "idx12_head_joint2": 0.3839745594177246
+            # "idx12_head_joint2": 0.3839745594177246
+            "idx12_head_joint2": 0.43633231, # not consiste with GUI joint state and iros but it works, find it by seting task to pack_in_the supermarket but work well
         },
         "iros_clear_table_in_the_restaurant": {
             "idx11_head_joint1": 0.0,
@@ -72,10 +74,9 @@ def get_head_joint_cfg(task_name):
             "idx12_head_joint2": 0.384
         },
         "iros_pack_in_the_supermarket": {
-            "idx01_body_joint1": 0.3,
-            "idx02_body_joint2": 0.52359877,
             "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43633231
+            "idx12_head_joint2": 0.43633231,
+            # "idx12_head_joint2": 0.3839745594177246, 
         },
         "iros_heat_the_food_in_the_microwave": {
             "idx11_head_joint1": 0.0,
@@ -122,6 +123,7 @@ def infer(policy):
     SIM_INIT_TIME = 10
 
     lang = get_instruction(task_name="iros_pack_in_the_supermarket")
+    # lang = get_instruction(task_name="iros_restock_supermarket_items")
     
     kinematics_config_dir = Path(__file__).parent.parent / 'kinematics'
     kinematics_config_dir = str(kinematics_config_dir.resolve())
@@ -155,6 +157,7 @@ def infer(policy):
     # print("End-effector pose from FK:\n", ee_pose)
 
     head_joint_cfg = get_head_joint_cfg(task_name="iros_pack_in_the_supermarket")
+    # head_joint_cfg = get_head_joint_cfg(task_name="iros_restock_supermarket_items")
 
     # arm_r_base_link -> head_link2
     T_armr_to_headcam = coord_transformer.relative_transform("arm_r_base_link", "head_link2", head_joint_cfg)
@@ -231,6 +234,8 @@ def infer(policy):
                 
                 if action:
                     task_substep_progress = _action_task_substep_progress(action)
+                    print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
+                    print(f"Instruction: {input['task_description']}")
                     if task_substep_progress[0][0] > 0.95:
                         curr_task_substep_index += 1
                         input_processor.curr_task_substep_index = curr_task_substep_index
@@ -247,16 +252,18 @@ def infer(policy):
                 # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                 for step_index in execution_steps:
                     delta_joint_angles = joint_cmd[step_index] - act_raw.position
-                    print(f"Delta joint angles for step {step_index}: \n")
-                    print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
-                    print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
-                    print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
-                    print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
+                    # print(f"Delta joint angles for step {step_index}: \n")
+                    # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
+                    # print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
+                    # print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
+                    # print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
+                    # print gripper joint angles in degrees
+                    print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(delta_joint_angles[7])}, Right gripper joint angle: {np.rad2deg(delta_joint_angles[15])}")
+
                     # Convert delta joint angles to joint state message
                     sim_ros_node.publish_joint_command(joint_cmd[step_index])
                     sim_ros_node.loop_rate.sleep()
-                    time.sleep(0.1)  # Sleep to allow the command to take effect
 
 def _action_task_substep_progress(action_raw):
     """
@@ -311,6 +318,7 @@ def get_policy_wo_state():
 
 def get_policy():
     PORT=14020 
+    # PORT=14030
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
