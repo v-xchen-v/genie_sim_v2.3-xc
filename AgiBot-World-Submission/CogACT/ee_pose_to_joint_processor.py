@@ -84,13 +84,19 @@ class EEtoJointProcessor:
         right_gripper_joint = self._cmd_gripper("right", vla_act_dict)
         
         # Combine left and right arm joint angles and gripper commands
+        # joint_cmd = np.concatenate([
+        #     left_arm_joint_angles,
+        #     left_gripper_joint.reshape(-1, 1),
+        #     right_arm_joint_angles,
+        #     right_gripper_joint.reshape(-1, 1), 
+        # ], axis=1)  # [num_steps, 16]
+        
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
-            left_gripper_joint.reshape(-1, 1),
+            np.tile(left_gripper_joint.reshape(-1, 1), (10, 1)),
             right_arm_joint_angles,
-            right_gripper_joint.reshape(-1, 1)
-        ], axis=1)  # [num_steps, 16]
-        
+            np.tile(right_gripper_joint.reshape(-1, 1), (10, 1))
+        ], axis=1) #[num_steps,*ik_iterations, 16]
         return joint_cmd
     
     ### ------------Private API------------ ###
@@ -291,7 +297,7 @@ class EEtoJointProcessor:
             # # # here we need to convert the pose from real cam to sim cam
 
             # convert pose from real cam to sim cam coord
-            pose_4x4_sim_cam_base= self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=pose_4x4)
+            pose_4x4_sim_cam_base= self.realcam_to_simcam(T_obj_in_realcam=pose_4x4)
 
             poses.append(pose_4x4_sim_cam_base) # based on real cam coord
 
@@ -372,7 +378,21 @@ class EEtoJointProcessor:
             elif arm == "right" and self.last_right_arm_joint_angles is not None:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
-            joint_angles = ik_solver.solve_from_pose(T_ee)
+            # iterative calling the solver, to make it more accurate
+            n_ik_iterations = 10
+            for _ in range(n_ik_iterations):
+                joint_angles = ik_solver.solve_from_pose(T_ee)
+                ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration
+
+                # add each joint angle to avoid jump move of robot
+                joint_angles_list.append(joint_angles)
+            
+            # Report the ik error on trans and rotation
+            T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
+            trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
+            rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
+            print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
+
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],
             #     quat=R.from_matrix(T_ee[:3, :3]).as_quat()
@@ -391,7 +411,7 @@ class EEtoJointProcessor:
             # print(f"End-effector pose error for {arm} arm: {T_ee_error[:3, 3]}")  # Translation error
             # print(f"End-effector rotation error for {arm} arm: {R.from_matrix(T_ee_error[:3, :3]).as_euler('xyz', degrees=True)}")  # Rotation error
 
-            joint_angles_list.append(joint_angles)
+            # joint_angles_list.append(joint_angles)
             
             # update the last joint angles for the solver
             if arm == "left":
