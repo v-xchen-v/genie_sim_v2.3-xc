@@ -91,12 +91,12 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
-        num_ik_iterations = 10
+        num_ik_iterations = 2
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
-            np.tile(left_gripper_joint.reshape(-1, 1), (10, 1)),
+            np.tile(left_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1)),
             right_arm_joint_angles,
-            np.tile(right_gripper_joint.reshape(-1, 1), (10, 1))
+            np.tile(right_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1))
         ], axis=1) #[num_steps,*ik_iterations, 16]
         return joint_cmd
     
@@ -380,7 +380,7 @@ class EEtoJointProcessor:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             # iterative calling the solver, to make it more accurate
-            n_ik_iterations = 10
+            n_ik_iterations = 2
             for _ in range(n_ik_iterations):
                 joint_angles = ik_solver.solve_from_pose(T_ee)
                 ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration

@@ -219,13 +219,13 @@ def infer(policy):
 
 
                 # send command from model to sim
-                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                execution_steps = [0, 1, 2, 3]
+                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # execution_steps = [0, 1, 2, 3]
                 # execution_steps = [0]
                 # execution_steps = [0, 1]
                 # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                 for step_index in execution_steps:
-                    num_ik_iterations = 10
+                    num_ik_iterations = 2
                     delta_joint_angles = joint_cmd[(step_index+1)*num_ik_iterations-1] - act_raw.position
                     # print(f"Delta joint angles for step {step_index}: \n")
                     # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
