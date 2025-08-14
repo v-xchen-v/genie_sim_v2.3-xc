@@ -26,7 +26,7 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=True):        
+    def __init__(self, log_obs=False):        
         
         self.log_obs = log_obs
         if self.log_obs:
@@ -63,7 +63,7 @@ class VLAInputProcessor:
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
 
-    def process(self, img_h, img_l, img_r, lang, state, task_substep_index=0, head_joint_cfg=None):
+    def process(self, img_h, img_l, img_r, lang, state, task_substep_index, head_joint_cfg=None):
         """
         Process the input images, task description, and robot state.
         

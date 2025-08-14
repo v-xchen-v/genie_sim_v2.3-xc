@@ -157,13 +157,13 @@ class EEtoJointProcessor:
         if arm not in ["left", "right"]:
             raise ValueError("Arm must be 'left' or 'right'.")
         
-        gripper_joint = self._act_gripper(arm, vla_act_dict)
-        print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
+        gripper_act_value = self._act_gripper(arm, vla_act_dict)
+        # print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
         
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
-        ratio = 1.0/0.7853981633974483  # for testing
-        gripper_cmd = np.clip(gripper_joint * ratio, 0, 1)  # [num_steps, 1]
+        ratio = 1.2/0.7853981633974483  # for testing
+        gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
 
         # Apply gripper signal filter
         gripper_singal_filter = GripperSignalFilter(
@@ -175,14 +175,14 @@ class EEtoJointProcessor:
             monotone=None           # or 'closing'/'opening' inside known phases
         )
         
-        filtered_gripper_cmd = np.zeros_like(gripper_cmd)
-        for i in range(gripper_cmd.shape[0]):
-            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd[i])
+        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint)
+        for i in range(gripper_cmd_joint.shape[0]):
+            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint[i])
 
         # Respect the max gripper command to grasp object tightly   
         # find max value of filtered_gripper_cmd and gripper_cmd, compute the ratio and apply to filtered_gripper_cmd
         max_filtered = np.max(filtered_gripper_cmd)
-        max_gripper = np.max(gripper_cmd)
+        max_gripper = np.max(gripper_cmd_joint)
         if max_gripper > 0:
             filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
         
@@ -190,8 +190,8 @@ class EEtoJointProcessor:
         filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
 
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
-        print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
-        print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
+        # print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
+        # print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
         
         return filtered_gripper_cmd
     
@@ -418,7 +418,7 @@ class EEtoJointProcessor:
             T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
             trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
             rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
-            print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
+            # print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
 
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],

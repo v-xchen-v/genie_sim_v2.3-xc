@@ -23,6 +23,10 @@ from pathlib import Path
 
 import time
 
+# Initialize ee_to_joint_processor at module level
+ee_to_joint_processor = EEtoJointProcessor()
+input_processor = VLAInputProcessor(log_obs=False)
+
 def get_instruction(task_name):
 
     if task_name == "iros_clear_the_countertop_waste":
@@ -51,8 +55,15 @@ def get_instruction(task_name):
 
     return lang
 
-        # "idx01_body_joint1": 0.3,
-        # "idx02_body_joint2": 0.52359877,
+# def get_instruction_splites(task_name, substep_index=0):
+#     full_instruction = get_instruction(task_name)
+#     instructions = full_instruction.split(";")
+#     if substep_index < len(instructions):
+#         return instructions[substep_index]
+#     else:
+#         # the last substep is the final step, so return the last instruction
+#         return instructions[-1]
+    
 def get_head_joint_cfg(task_name):
     # Define your joint configurations per task
     task_joint_cfgs = {
@@ -123,34 +134,11 @@ def infer(policy):
     SIM_INIT_TIME = 10
 
     # task_name = "iros_stamp_the_seal"
-    # task_name = "iros_pack_in_the_supermarket"
-    task_name = "iros_restock_supermarket_items"
+    task_name = "iros_pack_in_the_supermarket"
+    # task_name = "iros_restock_supermarket_items"
     lang = get_instruction(task_name=task_name)
+    curr_task_substep_index = 0
     head_joint_cfg = get_head_joint_cfg(task_name=task_name)
-    
-    kinematics_config_dir = Path(__file__).parent.parent / 'kinematics'
-    kinematics_config_dir = str(kinematics_config_dir.resolve())
-    coord_transformer = URDFCoordinateTransformer(f"{kinematics_config_dir}/configs/g1/G1_omnipicker.urdf")
-
-    # arm_base_link -> head_link2
-    T_armr_to_headcam = coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
-    T_headcam_to_armr = coord_transformer.reverse_transform("arm_base_link", "head_link2", head_joint_cfg)
-
-    # # arm_l_base_link -> head_link2
-    # T_arml_to_headcam = coord_transformer.relative_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-    # T_headcam_to_arml = coord_transformer.reverse_transform("arm_l_base_link", "head_link2", head_joint_cfg)
-
-    print("arm_base_link -> head_link2:\n", T_armr_to_headcam)
-    print("head_link2 -> arm_base_link:\n", T_headcam_to_armr)
-    # print("arm_l_base_link -> head_link2:\n", T_arml_to_headcam)
-    # print("head_link2 -> arm_l_base_link:\n", T_headcam_to_arml)
-
-    # # Example point transformation
-    # point_in_head = [0.1, 0.0, 0.0]
-    # point_in_armr = transformer.transform_point(point_in_head, "head_link2", "arm_r_base_link", joint_cfg)
-    # print("Point in head_link2:", point_in_head, "-> in arm_r_base_link:", point_in_armr)
-
-    ee_to_joint_processor = EEtoJointProcessor()
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -186,6 +174,7 @@ def infer(policy):
                 # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 
+                
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
 
@@ -193,9 +182,8 @@ def infer(policy):
                     print("No joint state received, skipping iteration.")
                     continue
 
-                input_processor = VLAInputProcessor()
-                curr_task_substep_index=0
-                input = input_processor.process(
+                
+                model_input = input_processor.process(
                     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
                 )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
@@ -203,16 +191,31 @@ def infer(policy):
                 #     action = policy.step(img_h, img_l, img_r, lang, state)
                 # else:
                 # print(f"instruction: {input["task_description"]}")
-                action = policy.step(input["image_list"], input["task_description"], input["robot_state"], verbose=True )
+                action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
                 
                 if action:
                     task_substep_progress = _action_task_substep_progress(action)
                     print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
-                    print(f"Instruction: {input['task_description']}")
-                    if task_substep_progress[0][0] > 0.95:
+                    print(f"Substep: {curr_task_substep_index}, Instruction: {model_input['task_description']}")
+                    
+                    # option 1: switch task substep index based on progress
+                    # define progress threshold per task
+                    # progress_threshold_dict = {
+                    #     "iros_pack_in_the_supermarket": 0.95,
+                    # }
+                    # if task_substep_progress[0][0] > progress_threshold_dict.get(task_name, 0.95):
+                    #     curr_task_substep_index += 1
+                    #     print(f"Task substep index updated to: {curr_task_substep_index}")
+                    
+                    # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
+                    print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
+                    user_input = input().strip().lower()
+                    if user_input == "yes" or user_input == "y":
                         curr_task_substep_index += 1
-                        input_processor.curr_task_substep_index = curr_task_substep_index
                         print(f"Task substep index updated to: {curr_task_substep_index}")
+                    else:
+                        print(f"Continuing with current substep: {curr_task_substep_index}")
+
                         
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
@@ -306,4 +309,5 @@ if __name__ == "__main__":
 
     policy = get_policy()
     # policy = get_policy_wo_state()
+    
     infer(policy)
