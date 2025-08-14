@@ -10,7 +10,7 @@ from pathlib import Path
 
 from kinematics.g1_relax_ik import G1RelaxSolver
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
-
+from gripper_signal_processor import GripperSignalFilter  
 
 class EEtoJointProcessor:
     """
@@ -164,10 +164,36 @@ class EEtoJointProcessor:
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
         ratio = 1.0/0.7853981633974483  # for testing
         gripper_cmd = np.clip(gripper_joint * ratio, 0, 1)  # [num_steps, 1]
+
+        # Apply gripper signal filter
+        gripper_singal_filter = GripperSignalFilter(
+            ema_alpha=0.25,
+            max_step=0.08,          # tune to your control rate & gripper speed
+            dropout_abs=0.05,
+            dropout_rel_drop=0.5,   # “glitch” size
+            lookahead=1,
+            monotone=None           # or 'closing'/'opening' inside known phases
+        )
+        
+        filtered_gripper_cmd = np.zeros_like(gripper_cmd)
+        for i in range(gripper_cmd.shape[0]):
+            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd[i])
+
+        # Respect the max gripper command to grasp object tightly   
+        # find max value of filtered_gripper_cmd and gripper_cmd, compute the ratio and apply to filtered_gripper_cmd
+        max_filtered = np.max(filtered_gripper_cmd)
+        max_gripper = np.max(gripper_cmd)
+        if max_gripper > 0:
+            filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
+        
+        # handle the filter_gripper_cmd is array of nan, treat it as 0
+        filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
+
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
         print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
+        print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
         
-        return gripper_cmd
+        return filtered_gripper_cmd
     
     def vla_pose_to_joints(
         self,

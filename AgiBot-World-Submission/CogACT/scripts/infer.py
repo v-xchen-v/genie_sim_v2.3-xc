@@ -219,8 +219,8 @@ def infer(policy):
 
 
                 # send command from model to sim
-                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                # execution_steps = [0, 1, 2, 3]
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                execution_steps = [0, 1, 2, 3]
                 # execution_steps = [0]
                 # execution_steps = [0, 1]
                 # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
