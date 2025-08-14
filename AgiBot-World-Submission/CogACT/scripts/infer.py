@@ -207,7 +207,7 @@ def infer(policy):
                     #     curr_task_substep_index += 1
                     #     print(f"Task substep index updated to: {curr_task_substep_index}")
                     
-                    # option 2: switch task substep by user input (manual control)
+                    # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
                     print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
                     user_input = input().strip().lower()
                     if user_input == "yes" or user_input == "y":
