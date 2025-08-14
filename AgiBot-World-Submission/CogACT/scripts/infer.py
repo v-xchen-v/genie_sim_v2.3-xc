@@ -183,7 +183,7 @@ def infer(policy):
                     continue
 
                 
-                input = input_processor.process(
+                model_input = input_processor.process(
                     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
                 )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
@@ -191,12 +191,12 @@ def infer(policy):
                 #     action = policy.step(img_h, img_l, img_r, lang, state)
                 # else:
                 # print(f"instruction: {input["task_description"]}")
-                action = policy.step(input["image_list"], input["task_description"], input["robot_state"], verbose=False)
+                action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
                 
                 if action:
                     task_substep_progress = _action_task_substep_progress(action)
                     print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
-                    print(f"Instruction: {input['task_description']}")
+                    print(f"Substep: {curr_task_substep_index}, Instruction: {model_input['task_description']}")
                     
                     # option 1: switch task substep index based on progress
                     # define progress threshold per task
