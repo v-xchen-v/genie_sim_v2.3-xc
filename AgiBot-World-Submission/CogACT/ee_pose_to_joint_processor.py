@@ -175,15 +175,23 @@ class EEtoJointProcessor:
             monotone=None           # or 'closing'/'opening' inside known phases
         )
         
-        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint)
-        for i in range(gripper_cmd_joint.shape[0]):
-            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint[i])
+        # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
+        max_value = np.max(gripper_cmd_joint)
+        max_index = np.argmax(gripper_cmd_joint)
+        
+        # Fill values after max index with the max value
+        gripper_cmd_joint_processed = gripper_cmd_joint.copy()
+        gripper_cmd_joint_processed[max_index:] = max_value
+
+        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
+        for i in range(gripper_cmd_joint_processed.shape[0]):
+            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
 
         # Respect the max gripper command to grasp object tightly   
-        # find max value of filtered_gripper_cmd and gripper_cmd, compute the ratio and apply to filtered_gripper_cmd
+        # find max value of filtered_gripper_cmd and gripper_cmd_processed, compute the ratio and apply to filtered_gripper_cmd
         max_filtered = np.max(filtered_gripper_cmd)
-        max_gripper = np.max(gripper_cmd_joint)
-        if max_gripper > 0:
+        max_gripper = np.max(gripper_cmd_joint_processed)
+        if max_gripper > 0 and max_filtered > 0:
             filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
         
         # handle the filter_gripper_cmd is array of nan, treat it as 0

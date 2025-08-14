@@ -81,7 +81,7 @@ class SimROSNode(Node):
         self.cur_joint_state = JointState()
 
         # loop
-        self.loop_rate = self.create_rate(1.0)
+        self.loop_rate = self.create_rate(2.0)
 
         self.img_head = None
         self.img_left_wrist = None
