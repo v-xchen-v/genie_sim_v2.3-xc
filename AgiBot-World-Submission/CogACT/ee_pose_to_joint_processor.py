@@ -158,7 +158,7 @@ class EEtoJointProcessor:
             raise ValueError("Arm must be 'left' or 'right'.")
         
         gripper_joint = self._act_gripper(arm, vla_act_dict)
-        print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
+        # print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
         
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
@@ -190,8 +190,8 @@ class EEtoJointProcessor:
         filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
 
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
-        print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
-        print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
+        # print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
+        # print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
         
         return filtered_gripper_cmd
     
@@ -418,7 +418,7 @@ class EEtoJointProcessor:
             T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
             trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
             rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
-            print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
+            # print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
 
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],
