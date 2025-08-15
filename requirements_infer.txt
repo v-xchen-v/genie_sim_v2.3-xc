@@ -16,3 +16,5 @@ torch ==2.5.1
 tqdm==4.66.4
 transformers<=4.45.0
 webdataset
+urdfpy
+networkx==2.8.8

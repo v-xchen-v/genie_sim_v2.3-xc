@@ -22,6 +22,7 @@ from ee_pose_to_joint_processor import EEtoJointProcessor
 from pathlib import Path
 
 import time
+import argparse
 
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
@@ -120,7 +121,7 @@ def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
 
-def infer(policy):
+def infer(policy, task_name):
     
     
     rclpy.init()
@@ -133,18 +134,9 @@ def infer(policy):
     count = 0
     SIM_INIT_TIME = 10
 
-    task_name = "iros_pack_in_the_supermarket" # easiest task to start with
-    # task_name = "iros_restock_supermarket_items" # second easiest task
-    # task_name = "iros_stamp_the_seal"
-    # task_name = "iros_make_a_sandwich"
-    # task_name = "iros_clear_the_countertop_waste"
-    # task_name = "iros_clear_table_in_the_restaurant"
-    # task_name = "iros_heat_the_food_in_the_microwave"
-    # task_name = "iros_open_drawer_and_store_items"
-    # task_name = "iros_pack_moving_objects_from_conveyor"
-    # task_name = "iros_pickup_items_from_the_freezer"
+    # Use the passed task_name parameter instead of hardcoded value
+    print(f"Running task: {task_name}")
     
-
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
     head_joint_cfg = get_head_joint_cfg(task_name=task_name)
@@ -390,8 +382,26 @@ def get_policy():
     return policy  # Placeholder for actual policy loading logic
 
 if __name__ == "__main__":
+    # Set up command line argument parsing
+    parser = argparse.ArgumentParser(description='Run robot inference with specified task')
+    parser.add_argument('--task_name', type=str, required=True,
+                        choices=[
+                            "iros_pack_in_the_supermarket",
+                            "iros_restock_supermarket_items", 
+                            "iros_stamp_the_seal",
+                            "iros_make_a_sandwich",
+                            "iros_clear_the_countertop_waste",
+                            "iros_clear_table_in_the_restaurant",
+                            "iros_heat_the_food_in_the_microwave",
+                            "iros_open_drawer_and_store_items",
+                            "iros_pack_moving_objects_from_conveyor",
+                            "iros_pickup_items_from_the_freezer"
+                        ],
+                        help='Name of the task to run')
+    
+    args = parser.parse_args()
 
     policy = get_policy()
     # policy = get_policy_wo_state()
     
-    infer(policy)
+    infer(policy, args.task_name)
