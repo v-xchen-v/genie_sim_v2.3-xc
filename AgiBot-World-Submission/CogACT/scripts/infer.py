@@ -236,7 +236,7 @@ def infer(policy):
                         "iros_heat_the_food_in_the_microwave": 40,
                         "iros_open_drawer_and_store_items": 32,
                         "iros_pack_moving_objects_from_conveyor": 6,
-                        "iros_pickup_items_from_the_freezer": 12,
+                        "iros_pickup_items_from_the_freezer": 24,
                         "iros_make_a_sandwich": 12,
                     }
                     
@@ -295,6 +295,13 @@ def infer(policy):
                     execution_steps = execution_steps[::4]  # Take every 4th step for execution
                 elif task_name == "iros_pickup_items_from_the_freezer":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    # execution_steps = [0, 1, 2, 3]
+                elif task_name == "iros_restock_supermarket_items":
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                elif task_name == "iros_clear_table_in_the_restaurant":
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                else:
+                    print(f"Task {task_name} not recognized, using default execution steps.")
 
                 for step_index in execution_steps:
                     num_ik_iterations = 1
