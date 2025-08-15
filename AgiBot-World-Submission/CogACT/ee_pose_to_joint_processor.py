@@ -91,7 +91,7 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
-        num_ik_iterations = 2
+        num_ik_iterations = 1
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
             np.tile(left_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1)),
@@ -162,7 +162,8 @@ class EEtoJointProcessor:
         
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
-        ratio = 1.2/0.7853981633974483  # for testing
+        # ratio = 1.2/0.7853981633974483  # for testing
+        ratio = 1.2/0.7
         gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
 
         # Apply gripper signal filter
@@ -414,7 +415,7 @@ class EEtoJointProcessor:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             # iterative calling the solver, to make it more accurate
-            n_ik_iterations = 2
+            n_ik_iterations = 1
             for _ in range(n_ik_iterations):
                 joint_angles = ik_solver.solve_from_pose(T_ee)
                 ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration

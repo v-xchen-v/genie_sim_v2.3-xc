@@ -133,12 +133,17 @@ def infer(policy):
     count = 0
     SIM_INIT_TIME = 10
 
+    # task_name = "iros_pack_in_the_supermarket" # easiest task to start with
+    # task_name = "iros_restock_supermarket_items" # second easiest task
     # task_name = "iros_stamp_the_seal"
-    task_name = "iros_pack_in_the_supermarket"
-    # task_name = "iros_restock_supermarket_items"
+    # task_name = "iros_make_a_sandwich"
+    task_name = "iros_clear_the_countertop_waste"
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
     head_joint_cfg = get_head_joint_cfg(task_name=task_name)
+    
+    # Counter for inference steps in current substep
+    substep_inference_counter = 0
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -194,41 +199,85 @@ def infer(policy):
                 action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
                 
                 if action:
+                    substep_inference_counter += 1
                     task_substep_progress = _action_task_substep_progress(action)
                     print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
-                    print(f"Substep: {curr_task_substep_index}, Instruction: {model_input['task_description']}")
+                    print(f"Substep: {curr_task_substep_index}, Inference Counter: {substep_inference_counter}, Instruction: {model_input['task_description']}")
                     
-                    # option 1: switch task substep index based on progress
-                    # define progress threshold per task
-                    # progress_threshold_dict = {
-                    #     "iros_pack_in_the_supermarket": 0.95,
-                    # }
-                    # if task_substep_progress[0][0] > progress_threshold_dict.get(task_name, 0.95):
-                    #     curr_task_substep_index += 1
-                    #     print(f"Task substep index updated to: {curr_task_substep_index}")
+                    # New strategy: Combined progress threshold and inference counter
+                    # Define minimum progress threshold per task
+                    progress_threshold_dict = {
+                        "iros_pack_in_the_supermarket": 0.3,
+                        "iros_restock_supermarket_items": 0.9,
+                        "iros_stamp_the_seal": 0.99,
+                        "iros_clear_the_countertop_waste": 0.4,
+                        # "iros_clear_table_in_the_restaurant": 0.4,
+                        # "iros_heat_the_food_in_the_microwave": 0.3,
+                        # "iros_open_drawer_and_store_items": 0.35,
+                        # "iros_pack_moving_objects_from_conveyor": 0.4,
+                        # "iros_pickup_items_from_the_freezer": 0.35,
+                        "iros_make_a_sandwich": 0.9,
+                    }
                     
-                    # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
-                    print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
-                    user_input = input().strip().lower()
-                    if user_input == "yes" or user_input == "y":
+                    # Define minimum inference counter per task
+                    min_inference_counter_dict = {
+                        "iros_pack_in_the_supermarket": 20,
+                        "iros_restock_supermarket_items": 5, # 1-16 steps
+                        "iros_stamp_the_seal": 10,
+                        "iros_clear_the_countertop_waste": 6,
+                        # "iros_clear_table_in_the_restaurant": 10,
+                        # "iros_heat_the_food_in_the_microwave": 12,
+                        # "iros_open_drawer_and_store_items": 8,
+                        # "iros_pack_moving_objects_from_conveyor": 10,
+                        # "iros_pickup_items_from_the_freezer": 12,
+                        "iros_make_a_sandwich": 12,
+                    }
+                    
+                    # Get thresholds for current task
+                    progress_threshold = progress_threshold_dict.get(task_name, 0.4)
+                    min_inference_counter = min_inference_counter_dict.get(task_name, 10)
+                    
+                    # Check both conditions: progress above threshold AND counter above minimum
+                    if ((task_substep_progress[0][0] > progress_threshold and 
+                        substep_inference_counter >= min_inference_counter)):
+                        # or (task_substep_progress[0][0] > progress_threshold and progress_threshold > 0.95):
                         curr_task_substep_index += 1
+                        substep_inference_counter = 0  # Reset counter for new substep
+                        print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter ({substep_inference_counter} >= {min_inference_counter})")
                         print(f"Task substep index updated to: {curr_task_substep_index}")
                     else:
-                        print(f"Continuing with current substep: {curr_task_substep_index}")
-
-                        
-                joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
+                        progress_ok = "✅" if task_substep_progress[0][0] > progress_threshold else "❌"
+                        counter_ok = "✅" if substep_inference_counter >= min_inference_counter else "❌"
+                        print(f"STAYING: Progress {progress_ok} ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter {counter_ok} ({substep_inference_counter} >= {min_inference_counter})")
+                    
+                    # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
+                    # print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
+                    # user_input = input().strip().lower()
+                    # if user_input == "yes" or user_input == "y":
+                    #     curr_task_substep_index += 1
+                    #     print(f"Task substep index updated to: {curr_task_substep_index}")
+                    # else:
+                    #     print(f"Continuing with current substep: {curr_task_substep_index}")
+                    joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
 
 
                 # send command from model to sim
-                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                execution_steps = [0, 1, 2, 3]
+                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # execution_steps = [0, 1, 2, 3]
                 # execution_steps = [0]
                 # execution_steps = [0, 1]
-                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                if task_name == "iros_stamp_the_seal":
+                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                elif task_name == "iros_pack_in_the_supermarket":
+                    execution_steps = [0, 1, 2, 3]
+                elif task_name == "iros_make_a_sandwich":
+                    # execution_steps = [0, 1, 2, 3]
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
                 for step_index in execution_steps:
-                    num_ik_iterations = 2
+                    num_ik_iterations = 1
                     delta_joint_angles = joint_cmd[(step_index+1)*num_ik_iterations-1] - act_raw.position
                     # print(f"Delta joint angles for step {step_index}: \n")
                     # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
