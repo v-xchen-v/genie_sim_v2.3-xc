@@ -139,7 +139,10 @@ def infer(policy):
     # task_name = "iros_make_a_sandwich"
     # task_name = "iros_clear_the_countertop_waste"
     # task_name = "iros_clear_table_in_the_restaurant"
-    task_name = "iros_heat_the_food_in_the_microwave"
+    # task_name = "iros_heat_the_food_in_the_microwave"
+    # task_name = "iros_open_drawer_and_store_items"
+    task_name = "iros_pack_moving_objects_from_conveyor"
+    
 
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
@@ -216,8 +219,8 @@ def infer(policy):
                         "iros_clear_the_countertop_waste": 0.4,
                         "iros_clear_table_in_the_restaurant": 0.6,
                         "iros_heat_the_food_in_the_microwave": 0.6,
-                        # "iros_open_drawer_and_store_items": 0.35,
-                        # "iros_pack_moving_objects_from_conveyor": 0.4,
+                        "iros_open_drawer_and_store_items": 0.4,
+                        "iros_pack_moving_objects_from_conveyor": 0.4,
                         # "iros_pickup_items_from_the_freezer": 0.35,
                         "iros_make_a_sandwich": 0.9,
                     }
@@ -230,8 +233,8 @@ def infer(policy):
                         "iros_clear_the_countertop_waste": 6,
                         "iros_clear_table_in_the_restaurant": 10,
                         "iros_heat_the_food_in_the_microwave": 40,
-                        # "iros_open_drawer_and_store_items": 8,
-                        # "iros_pack_moving_objects_from_conveyor": 10,
+                        "iros_open_drawer_and_store_items": 32,
+                        "iros_pack_moving_objects_from_conveyor": 6,
                         # "iros_pickup_items_from_the_freezer": 12,
                         "iros_make_a_sandwich": 12,
                     }
@@ -283,6 +286,12 @@ def infer(policy):
                 elif task_name == "iros_heat_the_food_in_the_microwave":
                     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                     execution_steps = [0, 1, 2, 3]
+                elif task_name == "iros_open_drawer_and_store_items":
+                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    execution_steps = [0, 1, 2, 3]
+                elif task_name == "iros_pack_moving_objects_from_conveyor":
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    execution_steps = execution_steps[::4]  # Take every 4th step for execution
 
 
                 for step_index in execution_steps:
