@@ -137,7 +137,9 @@ def infer(policy):
     # task_name = "iros_restock_supermarket_items" # second easiest task
     # task_name = "iros_stamp_the_seal"
     # task_name = "iros_make_a_sandwich"
-    task_name = "iros_clear_the_countertop_waste"
+    # task_name = "iros_clear_the_countertop_waste"
+    task_name = "iros_clear_table_in_the_restaurant"
+
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
     head_joint_cfg = get_head_joint_cfg(task_name=task_name)
@@ -211,7 +213,7 @@ def infer(policy):
                         "iros_restock_supermarket_items": 0.9,
                         "iros_stamp_the_seal": 0.99,
                         "iros_clear_the_countertop_waste": 0.4,
-                        # "iros_clear_table_in_the_restaurant": 0.4,
+                        "iros_clear_table_in_the_restaurant": 0.6,
                         # "iros_heat_the_food_in_the_microwave": 0.3,
                         # "iros_open_drawer_and_store_items": 0.35,
                         # "iros_pack_moving_objects_from_conveyor": 0.4,
@@ -225,7 +227,7 @@ def infer(policy):
                         "iros_restock_supermarket_items": 5, # 1-16 steps
                         "iros_stamp_the_seal": 10,
                         "iros_clear_the_countertop_waste": 6,
-                        # "iros_clear_table_in_the_restaurant": 10,
+                        "iros_clear_table_in_the_restaurant": 10,
                         # "iros_heat_the_food_in_the_microwave": 12,
                         # "iros_open_drawer_and_store_items": 8,
                         # "iros_pack_moving_objects_from_conveyor": 10,
@@ -235,7 +237,7 @@ def infer(policy):
                     
                     # Get thresholds for current task
                     progress_threshold = progress_threshold_dict.get(task_name, 0.4)
-                    min_inference_counter = min_inference_counter_dict.get(task_name, 10)
+                    min_inference_counter = min_inference_counter_dict.get(task_name, 6)
                     
                     # Check both conditions: progress above threshold AND counter above minimum
                     if ((task_substep_progress[0][0] > progress_threshold and 
@@ -263,7 +265,7 @@ def infer(policy):
 
 
                 # send command from model to sim
-                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # default
                 # execution_steps = [0, 1, 2, 3]
                 # execution_steps = [0]
                 # execution_steps = [0, 1]
@@ -275,6 +277,9 @@ def infer(policy):
                 elif task_name == "iros_make_a_sandwich":
                     # execution_steps = [0, 1, 2, 3]
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                elif task_name == "iros_clear_the_countertop_waste":
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
 
                 for step_index in execution_steps:
                     num_ik_iterations = 1
