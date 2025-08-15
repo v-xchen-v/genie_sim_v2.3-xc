@@ -16,5 +16,6 @@ torch ==2.5.1
 tqdm==4.66.4
 transformers<=4.45.0
 webdataset
+./3rdparty/ik_solver-0.4.3-cp310-cp310-linux_x86_64.whl
 urdfpy
 networkx==2.8.8
