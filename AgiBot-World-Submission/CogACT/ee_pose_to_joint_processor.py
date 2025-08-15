@@ -91,7 +91,7 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
-        num_ik_iterations = 2
+        num_ik_iterations = 1
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
             np.tile(left_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1)),
@@ -162,7 +162,8 @@ class EEtoJointProcessor:
         
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
-        ratio = 1.2/0.7853981633974483  # for testing
+        # ratio = 1.2/0.7853981633974483  # for testing
+        ratio = 1.2/0.7
         gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
 
         # Apply gripper signal filter
@@ -175,15 +176,23 @@ class EEtoJointProcessor:
             monotone=None           # or 'closing'/'opening' inside known phases
         )
         
-        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint)
-        for i in range(gripper_cmd_joint.shape[0]):
-            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint[i])
+        # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
+        max_value = np.max(gripper_cmd_joint)
+        max_index = np.argmax(gripper_cmd_joint)
+        
+        # Fill values after max index with the max value
+        gripper_cmd_joint_processed = gripper_cmd_joint.copy()
+        gripper_cmd_joint_processed[max_index:] = max_value
+
+        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
+        for i in range(gripper_cmd_joint_processed.shape[0]):
+            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
 
         # Respect the max gripper command to grasp object tightly   
-        # find max value of filtered_gripper_cmd and gripper_cmd, compute the ratio and apply to filtered_gripper_cmd
+        # find max value of filtered_gripper_cmd and gripper_cmd_processed, compute the ratio and apply to filtered_gripper_cmd
         max_filtered = np.max(filtered_gripper_cmd)
-        max_gripper = np.max(gripper_cmd_joint)
-        if max_gripper > 0:
+        max_gripper = np.max(gripper_cmd_joint_processed)
+        if max_gripper > 0 and max_filtered > 0:
             filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
         
         # handle the filter_gripper_cmd is array of nan, treat it as 0
@@ -406,7 +415,7 @@ class EEtoJointProcessor:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             # iterative calling the solver, to make it more accurate
-            n_ik_iterations = 2
+            n_ik_iterations = 1
             for _ in range(n_ik_iterations):
                 joint_angles = ik_solver.solve_from_pose(T_ee)
                 ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration
