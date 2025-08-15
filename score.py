@@ -156,6 +156,8 @@ def main():
             steps_str = ", ".join(f"{k}={s['avg_steps'][k]:.4f}" for k in sorted(s["avg_steps"].keys()))
             print(f"  steps_avg: {steps_str}")
     print("\n==== Overall ====")
+    print(f"Total tasks: {len(summaries)}")
+    print("Task-sum scalar avg (mean of all task avg_steps_mean):", overall_task_avg_of_task_means*len(summaries))
     print(f"Task-mean scalar avg (mean of each task's avg_steps_mean): {overall_task_avg_of_task_means}")
     print(f"Runs-weighted scalar avg (mean of all step values across all runs): {overall_runs_weighted_scalar}")
     print("Per-step overall (runs-weighted):")
@@ -167,10 +169,12 @@ def main():
         maybe_write_csv(args.csv, summaries, all_step_keys, overall_per_step_runs_weighted, overall_task_avg_of_task_means, overall_runs_weighted_scalar)
         print(f"\nWrote CSV summary to: {args.csv}")
 
+    num_tasks = len(summaries)
     if args.json_out:
         out = {
             "summaries": summaries,  # includes per-run details
             # "overall_per_step_runs_weighted": overall_per_step_runs_weighted,
+            "overall_task_sum_of_task_means": overall_task_avg_of_task_means*num_tasks,
             "overall_task_avg_of_task_means": overall_task_avg_of_task_means,
             "overall_runs_weighted_scalar": overall_runs_weighted_scalar,
             "all_step_keys": all_step_keys,
