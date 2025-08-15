@@ -133,7 +133,7 @@ def infer(policy):
     count = 0
     SIM_INIT_TIME = 10
 
-    # task_name = "iros_pack_in_the_supermarket" # easiest task to start with
+    task_name = "iros_pack_in_the_supermarket" # easiest task to start with
     # task_name = "iros_restock_supermarket_items" # second easiest task
     # task_name = "iros_stamp_the_seal"
     # task_name = "iros_make_a_sandwich"
@@ -142,7 +142,7 @@ def infer(policy):
     # task_name = "iros_heat_the_food_in_the_microwave"
     # task_name = "iros_open_drawer_and_store_items"
     # task_name = "iros_pack_moving_objects_from_conveyor"
-    task_name = "iros_pickup_items_from_the_freezer"
+    # task_name = "iros_pickup_items_from_the_freezer"
     
 
     lang = get_instruction(task_name=task_name)
@@ -228,7 +228,8 @@ def infer(policy):
                     
                     # Define minimum inference counter per task
                     min_inference_counter_dict = {
-                        "iros_pack_in_the_supermarket": 20,
+                        # "iros_pack_in_the_supermarket": 20,
+                        "iros_pack_in_the_supermarket": 12, # 1-8 steps
                         "iros_restock_supermarket_items": 5, # 1-16 steps
                         "iros_stamp_the_seal": 10,
                         "iros_clear_the_countertop_waste": 6,
@@ -278,7 +279,9 @@ def infer(policy):
                     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 elif task_name == "iros_pack_in_the_supermarket":
-                    execution_steps = [0, 1, 2, 3]
+                    # execution_steps = [0, 1, 2, 3]
+                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
                 elif task_name == "iros_make_a_sandwich":
                     # execution_steps = [0, 1, 2, 3]
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -317,8 +320,13 @@ def infer(policy):
 
                     # Convert delta joint angles to joint state message
                     for i in range(num_ik_iterations):
+                        joint_arr = joint_cmd[step_index * num_ik_iterations + i].tolist()
+                        if task_name == "iros_pack_moving_objects_from_conveyor":
+                            # drop during lifting, more tight grasp is need
+                            joint_arr[7] *= 1.5
+                            joint_arr[15] *= 1.5
                         sim_ros_node.publish_joint_command(
-                            joint_cmd[step_index * num_ik_iterations + i].tolist()
+                            joint_arr
                         )
                         # sim_ros_node.publish_joint_command(joint_cmd[step_index])
                         sim_ros_node.loop_rate.sleep()
