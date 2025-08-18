@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+"""Compute and Summarize per-step evaluation scores across multiple tasks and runs."""
+
 import os
 import json
 import glob
@@ -137,7 +140,7 @@ def maybe_write_csv(csv_path: str, summaries, all_step_keys, overall_per_step_ru
 
 def main():
     parser = argparse.ArgumentParser(description="Aggregate per-step evaluation scores across tasks and runs (no E2E).")
-    parser.add_argument("--base_dir", default="source/geniesim/benchmark/output", help="Base directory containing <task_name> subfolders.")
+    parser.add_argument("--base_dir", default="source/geniesim/benchmark/output/0815", help="Base directory containing <task_name> subfolders.")
     parser.add_argument("--csv", default=None, help="Optional path to write a CSV summary.")
     parser.add_argument("--json_out", default=None, help="Optional path to write a JSON summary.")
     args = parser.parse_args()
@@ -150,20 +153,41 @@ def main():
 
     # Pretty print to console
     print("==== Per-task summaries (per-step averages) ====")
+    print(f"{'Task Name':<40} {'Runs':<6} {'Avg Score':<12} {'Steps Detail'}")
+    print("-" * 80)
     for s in summaries:
-        print(f"- {s['task_name']}: runs={s['num_runs']}, avg_steps_mean={s['avg_steps_mean']}")
+        avg_score = s['avg_steps_mean']
+        avg_score_str = f"{avg_score:.4f}" if avg_score is not None else "N/A"
+        print(f"{s['task_name']:<40} {s['num_runs']:<6} {avg_score_str:<12}", end="")
+
         if s["avg_steps"]:
-            steps_str = ", ".join(f"{k}={s['avg_steps'][k]:.4f}" for k in sorted(s["avg_steps"].keys()))
-            print(f"  steps_avg: {steps_str}")
+            steps_str = ", ".join(f"{k}={s['avg_steps'][k]:.2f}" for k in sorted(s["avg_steps"].keys()))
+            print(f" {steps_str}")
+        else:
+            print(" No step data")
+
+    # print("\n==== Average Scores Per Task Summary ====")
+    # for s in summaries:
+    #     avg_score = s['avg_steps_mean']
+    #     if avg_score is not None:
+    #         print(f"{s['task_name']}: {avg_score:.4f}")
+    #     else:
+    #         print(f"{s['task_name']}: No data")
+
+    avg_sum = 0
+    for s in summaries:
+        avg_score = s['avg_steps_mean']
+        avg_sum += avg_score if avg_score is not None else 0
+
     print("\n==== Overall ====")
     print(f"Total tasks: {len(summaries)}")
-    print("Task-sum scalar avg (mean of all task avg_steps_mean):", overall_task_avg_of_task_means*len(summaries))
-    print(f"Task-mean scalar avg (mean of each task's avg_steps_mean): {overall_task_avg_of_task_means}")
-    print(f"Runs-weighted scalar avg (mean of all step values across all runs): {overall_runs_weighted_scalar}")
+    print("Task-sum scalar avg (mean of all task avg_steps_mean):", avg_sum)
+    # print(f"Task-mean scalar avg (mean of each task's avg_steps_mean): {overall_task_avg_of_task_means}")
+    # print(f"Runs-weighted scalar avg (mean of all step values across all runs): {overall_runs_weighted_scalar}")
     print("Per-step overall (runs-weighted):")
-    for k in all_step_keys:
+    for k in sorted(all_step_keys):
         v = overall_per_step_runs_weighted.get(k)
-        print(f"  {k}: {v}")
+        print(f"  {k}: {v:.2f}")
 
     if args.csv:
         maybe_write_csv(args.csv, summaries, all_step_keys, overall_per_step_runs_weighted, overall_task_avg_of_task_means, overall_runs_weighted_scalar)
@@ -188,7 +212,34 @@ def main():
 if __name__ == "__main__":
     main()
 
-    # overall_task_avg_of_task_means: mean of each task’s avg_steps_mean (treats tasks equally).
-    #   - overall_per_step_runs_weighted: pooled per-step averages across all runs of all tasks.
-    #   - overall_runs_weighted_scalar: mean of all step values pooled across all runs (treats runs equally).
+"""
+==== Per-task summaries (per-step averages) ====
+Task Name                                Runs   Avg Score    Steps Detail
+--------------------------------------------------------------------------------
+iros_clear_table_in_the_restaurant       5      0.2500       STEP0=1.00, STEP1=0.00, STEP2=0.00, STEP3=0.00
+iros_clear_the_countertop_waste          5      0.1667       STEP0=1.00, STEP1=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00, STEP5=0.00
+iros_heat_the_food_in_the_microwave      5      0.0000       STEP0=0.00, STEP1=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00, STEP5=0.00
+iros_make_a_sandwich                     5      0.0833       STEP0=1.00, STEP1=0.00, STEP10=0.00, STEP11=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00, STEP5=0.00, STEP6=0.00, STEP7=0.00, STEP8=0.00, STEP9=0.00
+iros_open_drawer_and_store_items         5      0.0000       STEP0=0.00, STEP1=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00
+iros_pack_in_the_supermarket             5      0.3500       STEP0=1.00, STEP1=0.20, STEP2=0.20, STEP3=0.00
+iros_pack_moving_objects_from_conveyor   4      0.2500       STEP0=1.00, STEP1=0.00, STEP2=0.00, STEP3=0.00
+iros_pickup_items_from_the_freezer       5      0.0000       STEP0=0.00, STEP1=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00
+iros_restock_supermarket_items           5      0.2500       STEP0=1.00, STEP1=0.00, STEP2=0.00, STEP3=0.00
+iros_stamp_the_seal                      5      0.2000       STEP0=1.00, STEP1=0.00, STEP2=0.00, STEP3=0.00, STEP4=0.00
 
+==== Overall ====
+Total tasks: 10
+Task-sum scalar avg (mean of all task avg_steps_mean): 1.5499999999999998
+Per-step overall (runs-weighted):
+  STEP0: 0.69
+  STEP1: 0.02
+  STEP10: 0.00
+  STEP11: 0.00
+  STEP2: 0.02
+  STEP3: 0.00
+  STEP4: 0.00
+  STEP5: 0.00
+  STEP6: 0.00
+  STEP7: 0.00
+  STEP8: 0.00
+"""
