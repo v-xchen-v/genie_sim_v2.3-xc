@@ -37,7 +37,7 @@ split_name() {
 sleep 5
 ./scripts/autorun.sh clean
 
-directory="benchmark/ader/eval_tasks/task_gen/"
+directory="source/geniesim/benchmark/ader/eval_tasks/task_gen/"
 declare -a file_list
 if [ "$MODE" = "Generalization" ]; then
     while read -r file; do
