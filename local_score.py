@@ -140,7 +140,7 @@ def maybe_write_csv(csv_path: str, summaries, all_step_keys, overall_per_step_ru
 
 def main():
     parser = argparse.ArgumentParser(description="Aggregate per-step evaluation scores across tasks and runs (no E2E).")
-    parser.add_argument("--base_dir", default="source/geniesim/benchmark/output/0815", help="Base directory containing <task_name> subfolders.")
+    parser.add_argument("--base_dir", default="source/geniesim/benchmark/output", help="Base directory containing <task_name> subfolders.")
     parser.add_argument("--csv", default=None, help="Optional path to write a CSV summary.")
     parser.add_argument("--json_out", default=None, help="Optional path to write a JSON summary.")
     args = parser.parse_args()
