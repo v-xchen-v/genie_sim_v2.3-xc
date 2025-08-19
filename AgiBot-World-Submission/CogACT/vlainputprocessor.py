@@ -382,8 +382,15 @@ class VLAInputProcessor:
     def _obs_instruction(self, lang,  substep_index=0):
         instruction_splits = self._split_instruction(lang)
         
-        if substep_index >= len(instruction_splits):
-            return instruction_splits[-1]  # Return the last instruction if index exceeds
+        # Strategy 1: Keep the last instruction if the index exceeds the length
+        # if substep_index >= len(instruction_splits):
+        #     return instruction_splits[-1]  # Return the last instruction if index exceeds
+
+        # Strategy 2: Use modulo to wrap around so that if time is enough, try more times of whole loop of instructions
+        if substep_index < 0:
+            raise ValueError("Substep index cannot be negative.")
+        substep_index = substep_index % len(instruction_splits)  # Wrap around
+
         instruction = instruction_splits[
             substep_index
         ]  

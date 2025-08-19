@@ -376,7 +376,7 @@ def get_policy_wo_state():
 
 def get_policy():
     # PORT=14020 
-    PORT=14030
+    PORT=14030 # 08/15/2025 tested
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
