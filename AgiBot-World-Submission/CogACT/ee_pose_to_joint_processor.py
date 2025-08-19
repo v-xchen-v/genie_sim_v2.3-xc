@@ -148,6 +148,34 @@ class EEtoJointProcessor:
             raise ValueError("VLA action does not contain gripper joint angles for the right arm.")
         return right_gripper_joint
         
+    def _apply_gripper_timing_adjustment(self, gripper_values: np.ndarray, n_frames_forward: int = 2) -> np.ndarray:
+        """
+        Apply timing adjustment to gripper values by shifting them forward for n frames.
+        
+        Args:
+            gripper_values: Input gripper values array [num_steps, 1]
+            n_frames_forward: Number of frames to shift forward (default: 2)
+            
+        Returns:
+            Adjusted gripper values array [num_steps, 1]
+        """
+        if n_frames_forward < 0:
+            raise ValueError("n_frames_forward must be non-negative.")
+        
+        if n_frames_forward == 0:
+            return gripper_values
+        
+        if gripper_values.shape[0] > n_frames_forward:
+            # Shift gripper values forward by n frames
+            adjusted_values = gripper_values[n_frames_forward:]
+            # Fill the remaining frames with the last value
+            adjusted_values = np.concatenate([
+                adjusted_values,
+                np.full((n_frames_forward, 1), adjusted_values[-1])
+            ])
+            return adjusted_values
+        return gripper_values
+
     def _cmd_gripper(self, arm: str, vla_act_dict: dict) -> np.ndarray:
         """
         calculate gripper command from vla action.
@@ -157,9 +185,21 @@ class EEtoJointProcessor:
         if arm not in ["left", "right"]:
             raise ValueError("Arm must be 'left' or 'right'.")
         
-        gripper_act_value = self._act_gripper(arm, vla_act_dict)
+        gripper_act_value = self._act_gripper(arm, vla_act_dict) # [num_steps, 1]
         # print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
         
+        # Apply timing adjustment to account for gripper closing delay
+        if gripper_act_value.shape[0] == 16:
+            n_frames_forward = 5
+        elif gripper_act_value.shape[0] == 8:
+            n_frames_forward = 3
+        elif gripper_act_value.shape[0] == 4:
+            n_frames_forward = 2
+        else:
+            n_frames_forward = 0
+
+        gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
+
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
         # ratio = 1.2/0.7853981633974483  # for testing
