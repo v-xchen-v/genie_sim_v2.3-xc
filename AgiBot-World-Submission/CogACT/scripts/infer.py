@@ -366,9 +366,10 @@ def infer(policy, task_name):
                             joint_arr[15] *= 1.5
                         
                         # Interpolate between current joint positions and target joint positions
+                        act_raw = sim_ros_node.get_joint_state()
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
-                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=5)
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=2)
                         
                         # Send interpolated joint commands
                         for interp_joints in interpolated_steps:
@@ -462,6 +463,12 @@ def interpolate_joints(current_joints, target_joints, num_steps=5):
     for i in range(1, num_steps + 1):
         alpha = i / num_steps  # interpolation factor from 0 to 1
         interpolated = current + alpha * (target - current)
+
+        # exclude the gripper joints from interpolation
+        interpolated[7] = target[7]  # left gripper joint
+        interpolated[15] = target[15]  # right gripper joint
+
+        # Append the interpolated joint positions to the list
         interpolated_joints.append(interpolated.tolist())
     
     return interpolated_joints
