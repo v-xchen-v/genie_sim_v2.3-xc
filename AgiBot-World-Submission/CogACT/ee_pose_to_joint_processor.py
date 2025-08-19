@@ -48,11 +48,12 @@ class EEtoJointProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
+
         
     
     def get_joint_cmd(self, vla_act_dict, 
                       head_joint_cfg: Optional[Dict[str, float]],
-                      curr_arm_joint_angles: np.ndarray) -> np.ndarray:
+                      curr_arm_joint_angles: np.ndarray, task_name: str) -> np.ndarray:
         """
         Get joint command from VLA action.
             "idx21_arm_l_joint1",
@@ -72,6 +73,8 @@ class EEtoJointProcessor:
             "idx67_arm_r_joint7",
             "idx81_gripper_r_outer_joint1",
         """
+        self.task_name = task_name  
+
         vla_act_dict = self._process(vla_act_dict, head_joint_cfg=head_joint_cfg, curr_arm_joint_angles=curr_arm_joint_angles)
         left_arm_joint_angles = vla_act_dict.get("ROBOT_LEFT_JOINTS")
         right_arm_joint_angles = vla_act_dict.get("ROBOT_RIGHT_JOINTS")
@@ -80,8 +83,8 @@ class EEtoJointProcessor:
             raise ValueError("VLA action does not contain joint angles for both arms.")
         
         # get gripper joint angles
-        left_gripper_joint = self._cmd_gripper("left", vla_act_dict)
-        right_gripper_joint = self._cmd_gripper("right", vla_act_dict)
+        left_gripper_joint = self._cmd_gripper("left", vla_act_dict, task_name)
+        right_gripper_joint = self._cmd_gripper("right", vla_act_dict, task_name)
         
         # Combine left and right arm joint angles and gripper commands
         # joint_cmd = np.concatenate([
@@ -176,7 +179,7 @@ class EEtoJointProcessor:
             return adjusted_values
         return gripper_values
 
-    def _cmd_gripper(self, arm: str, vla_act_dict: dict) -> np.ndarray:
+    def _cmd_gripper(self, arm: str, vla_act_dict: dict, task_name: str) -> np.ndarray:
         """
         calculate gripper command from vla action.
         the gripper value is in [0, 1], where 0 is fully open and 1 is fully closed.
@@ -197,6 +200,12 @@ class EEtoJointProcessor:
             n_frames_forward = 2
         else:
             n_frames_forward = 0
+
+        task_names = ["iros_pack_in_the_supermarket", "iros_restock_supermarket_items"]
+        if task_name not in task_names:
+            n_frames_forward = 0
+
+        print(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
 
         gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
 

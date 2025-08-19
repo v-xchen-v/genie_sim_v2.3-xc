@@ -180,7 +180,7 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
         # "iros_stamp_the_seal": 10,
         # "iros_clear_the_countertop_waste": 6,
         # "iros_clear_table_in_the_restaurant": 10,
-        # "iros_heat_the_food_in_the_microwave": 40,
+        "iros_heat_the_food_in_the_microwave": 40, # 1-8 steps
         # "iros_open_drawer_and_store_items": 32,
         # "iros_pack_moving_objects_from_conveyor": 6,
         # "iros_pickup_items_from_the_freezer": 24,
@@ -237,7 +237,7 @@ def infer(policy, task_name):
     
     bridge = CvBridge()
     count = 0
-    SIM_INIT_TIME = 10
+    SIM_INIT_TIME = 8
 
     # Use the passed task_name parameter instead of hardcoded value
     print(f"Running task: {task_name}")
@@ -308,7 +308,7 @@ def infer(policy, task_name):
                         action, task_name, curr_task_substep_index, substep_inference_counter, model_input
                     )
                     
-                joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position)
+                joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position, task_name=task_name)
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
 
 
@@ -330,7 +330,8 @@ def infer(policy, task_name):
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 elif task_name == "iros_heat_the_food_in_the_microwave":
                     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    execution_steps = [0, 1, 2, 3]
+                    # execution_steps = [0, 1, 2, 3]
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
                 elif task_name == "iros_open_drawer_and_store_items":
                     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                     execution_steps = [0, 1, 2, 3]
@@ -360,7 +361,8 @@ def infer(policy, task_name):
                     # Convert delta joint angles to joint state message
                     for i in range(num_ik_iterations):
                         joint_arr = joint_cmd[step_index * num_ik_iterations + i]
-                        if task_name == "iros_pack_moving_objects_from_conveyor":
+                        if task_name == "iros_pack_moving_objects_from_conveyor" or task_name == "iros_restock_supermarket_items" \
+                            or task_name == "iros_make_a_sandwich":
                             # drop during lifting, more tight grasp is need
                             joint_arr[7] *= 1.5
                             joint_arr[15] *= 1.5
@@ -369,8 +371,13 @@ def infer(policy, task_name):
                         act_raw = sim_ros_node.get_joint_state()
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
-                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=2)
-                        
+                        if task_name == "iros_clear_countertop_waste" or task_name == "iros_pack_moving_objects_from_conveyor" \
+                            or task_name == "iros_make_a_sandwich" :
+                            # or task_name =="iros_clear_table_in_the_restaurant":
+                            num_steps = 1
+                        else:
+                            num_steps = 2
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_steps)
                         # Send interpolated joint commands
                         for interp_joints in interpolated_steps:
                             sim_ros_node.publish_joint_command(interp_joints)
