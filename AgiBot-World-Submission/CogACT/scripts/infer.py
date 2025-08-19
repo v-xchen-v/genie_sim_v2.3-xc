@@ -171,9 +171,33 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     progress_list = np.array(task_substep_progress[0]) # [num_steps, 1]
     # Check if any progress value exceeds the threshold
     progress_threshold = 0.95  # Default threshold, can be adjusted per task if need
-    if np.any(progress_list > progress_threshold):
+
+    # Define maximum inference counter per task
+    max_inference_counter_dict = {
+        # "iros_pack_in_the_supermarket": 20,
+        "iros_pack_in_the_supermarket": 48, # 1-8 steps
+        # "iros_restock_supermarket_items": 5, # 1-16 steps
+        # "iros_stamp_the_seal": 10,
+        # "iros_clear_the_countertop_waste": 6,
+        # "iros_clear_table_in_the_restaurant": 10,
+        # "iros_heat_the_food_in_the_microwave": 40,
+        # "iros_open_drawer_and_store_items": 32,
+        # "iros_pack_moving_objects_from_conveyor": 6,
+        # "iros_pickup_items_from_the_freezer": 24,
+        # "iros_make_a_sandwich": 12,
+    }
+
+    max_inference_counter = max_inference_counter_dict.get(task_name, 20)
+
+    # Check if the substep inference counter exceeds the maximum allowed
+    already_failed = substep_inference_counter >= max_inference_counter
+    # Check if the progress exceeds the threshold
+    already_succeeded = np.any(progress_list > progress_threshold)
+    # If either condition is met, advance to the next substep
+    if already_failed or already_succeeded:
         print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold})")
         curr_task_substep_index += 1
+        substep_inference_counter = 0  # Reset counter for new substep
     else:
         print(f"❌ NOT ADVANCING: Progress ({task_substep_progress[0][0]:.3f} <= {progress_threshold})")    
 
@@ -298,8 +322,7 @@ def infer(policy, task_name):
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 elif task_name == "iros_pack_in_the_supermarket":
                     # execution_steps = [0, 1, 2, 3]
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
+                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 elif task_name == "iros_make_a_sandwich":
                     # execution_steps = [0, 1, 2, 3]
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -333,21 +356,28 @@ def infer(policy, task_name):
                     # print(f"Delta left gripper joint angles: {delta_joint_angles[7]}\n")
                     # print(f"Delta right gripper joint angles: {delta_joint_angles[15]}\n")
                     
-                    # print gripper joint angles in degrees
-                    print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(delta_joint_angles[7])}, Right gripper joint angle: {np.rad2deg(delta_joint_angles[15])}")
 
                     # Convert delta joint angles to joint state message
                     for i in range(num_ik_iterations):
-                        joint_arr = joint_cmd[step_index * num_ik_iterations + i].tolist()
+                        joint_arr = joint_cmd[step_index * num_ik_iterations + i]
                         if task_name == "iros_pack_moving_objects_from_conveyor":
                             # drop during lifting, more tight grasp is need
                             joint_arr[7] *= 1.5
                             joint_arr[15] *= 1.5
-                        sim_ros_node.publish_joint_command(
-                            joint_arr
-                        )
-                        # sim_ros_node.publish_joint_command(joint_cmd[step_index])
-                        sim_ros_node.loop_rate.sleep()
+                        
+                        # Interpolate between current joint positions and target joint positions
+                        current_joints = act_raw.position  # [16,]
+                        target_joints = joint_arr          # [16,]
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=5)
+                        
+                        # Send interpolated joint commands
+                        for interp_joints in interpolated_steps:
+                            sim_ros_node.publish_joint_command(interp_joints)
+                            # print gripper joint angles in degrees for the final target
+                            if interp_joints == interpolated_steps[-1]:
+                                print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7])}, Right gripper joint angle: {np.rad2deg(interp_joints[15])}")
+                            sim_ros_node.loop_rate.sleep()
+
 
 def _action_task_substep_progress(action_raw):
     """
@@ -407,6 +437,34 @@ def get_policy():
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
+
+def interpolate_joints(current_joints, target_joints, num_steps=5):
+    """
+    Interpolate between current joint positions and target joint positions.
+    
+    Args:
+        current_joints: Current joint positions [16,] or [16, 1]
+        target_joints: Target joint positions [16,] or [16, 1] 
+        num_steps: Number of interpolation steps (default: 5)
+        
+    Returns:
+        List of interpolated joint arrays, each of shape [16,]
+    """
+    # Ensure inputs are numpy arrays and flatten to 1D
+    current = np.array(current_joints).flatten()
+    target = np.array(target_joints).flatten()
+    
+    if current.shape != target.shape:
+        raise ValueError(f"Shape mismatch: current_joints {current.shape} vs target_joints {target.shape}")
+    
+    # Create interpolation steps (excluding start point, including end point)
+    interpolated_joints = []
+    for i in range(1, num_steps + 1):
+        alpha = i / num_steps  # interpolation factor from 0 to 1
+        interpolated = current + alpha * (target - current)
+        interpolated_joints.append(interpolated.tolist())
+    
+    return interpolated_joints
 
 if __name__ == "__main__":
     # Set up command line argument parsing

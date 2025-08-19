@@ -190,7 +190,7 @@ class EEtoJointProcessor:
         
         # Apply timing adjustment to account for gripper closing delay
         if gripper_act_value.shape[0] == 16:
-            n_frames_forward = 5
+            n_frames_forward = 7
         elif gripper_act_value.shape[0] == 8:
             n_frames_forward = 3
         elif gripper_act_value.shape[0] == 4:
