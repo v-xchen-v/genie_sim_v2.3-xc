@@ -135,18 +135,18 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     
     # New strategy: Combined progress threshold and inference counter
     # Define minimum progress threshold per task
-    progress_threshold_dict = {
-        "iros_pack_in_the_supermarket": 0.3,
-        "iros_restock_supermarket_items": 0.9,
-        "iros_stamp_the_seal": 0.99,
-        "iros_clear_the_countertop_waste": 0.4,
-        "iros_clear_table_in_the_restaurant": 0.6,
-        "iros_heat_the_food_in_the_microwave": 0.6,
-        "iros_open_drawer_and_store_items": 0.4,
-        "iros_pack_moving_objects_from_conveyor": 0.4,
-        "iros_pickup_items_from_the_freezer": 0.4,
-        "iros_make_a_sandwich": 0.9,
-    }
+    # progress_threshold_dict = {
+    #     "iros_pack_in_the_supermarket": 0.3,
+    #     "iros_restock_supermarket_items": 0.9,
+    #     "iros_stamp_the_seal": 0.99,
+    #     "iros_clear_the_countertop_waste": 0.4,
+    #     "iros_clear_table_in_the_restaurant": 0.6,
+    #     "iros_heat_the_food_in_the_microwave": 0.6,
+    #     "iros_open_drawer_and_store_items": 0.4,
+    #     "iros_pack_moving_objects_from_conveyor": 0.4,
+    #     "iros_pickup_items_from_the_freezer": 0.4,
+    #     "iros_make_a_sandwich": 0.9,
+    # }
     
     # Define minimum inference counter per task
     min_inference_counter_dict = {
@@ -164,21 +164,32 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     }
     
     # Get thresholds for current task
-    progress_threshold = progress_threshold_dict.get(task_name, 0.4)
+    # progress_threshold = progress_threshold_dict.get(task_name, 0.4)
     min_inference_counter = min_inference_counter_dict.get(task_name, 6)
     
-    # Check both conditions: progress above threshold AND counter above minimum
-    if ((task_substep_progress[0][0] > progress_threshold and 
-        substep_inference_counter >= min_inference_counter)):
-        # or (task_substep_progress[0][0] > progress_threshold and progress_threshold > 0.95):
+    # Strategy 1: Advance next substep based on progress signal and the pre-defined progress threshold
+    progress_list = np.array(task_substep_progress[0]) # [num_steps, 1]
+    # Check if any progress value exceeds the threshold
+    progress_threshold = 0.95  # Default threshold, can be adjusted per task if need
+    if np.any(progress_list > progress_threshold):
+        print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold})")
         curr_task_substep_index += 1
-        substep_inference_counter = 0  # Reset counter for new substep
-        print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter ({substep_inference_counter} >= {min_inference_counter})")
-        print(f"Task substep index updated to: {curr_task_substep_index}")
     else:
-        progress_ok = "✅" if task_substep_progress[0][0] > progress_threshold else "❌"
-        counter_ok = "✅" if substep_inference_counter >= min_inference_counter else "❌"
-        print(f"STAYING: Progress {progress_ok} ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter {counter_ok} ({substep_inference_counter} >= {min_inference_counter})")
+        print(f"❌ NOT ADVANCING: Progress ({task_substep_progress[0][0]:.3f} <= {progress_threshold})")    
+
+    
+    # # Check both conditions: progress above threshold AND counter above minimum
+    # if ((task_substep_progress[0][0] > progress_threshold and 
+    #     substep_inference_counter >= min_inference_counter)):
+    #     # or (task_substep_progress[0][0] > progress_threshold and progress_threshold > 0.95):
+    #     curr_task_substep_index += 1
+    #     substep_inference_counter = 0  # Reset counter for new substep
+    #     print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter ({substep_inference_counter} >= {min_inference_counter})")
+    #     print(f"Task substep index updated to: {curr_task_substep_index}")
+    # else:
+    #     progress_ok = "✅" if task_substep_progress[0][0] > progress_threshold else "❌"
+    #     counter_ok = "✅" if substep_inference_counter >= min_inference_counter else "❌"
+    #     print(f"STAYING: Progress {progress_ok} ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter {counter_ok} ({substep_inference_counter} >= {min_inference_counter})")
     
     # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
     # print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
