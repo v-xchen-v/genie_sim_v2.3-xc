@@ -57,7 +57,7 @@ for i in $(seq 1 $CASE_NUM); do
         printf "\n\n  Evaluation on ${file_list[$i-1]}...\n"
         TASK_NAME=$(split_name "${file_list[$i-1]}")
         printf "\n Extract task name $TASK_NAME from ${file_list[$i-1]}\n"
-        cp "${file_list[$i-1]}" "benchmark/ader/eval_tasks/$TASK_NAME.json"
+        cp "${file_list[$i-1]}" "source/geniesim/benchmark/ader/eval_tasks/$TASK_NAME.json"
     else
         printf "\n\n  ROUND $i...\n\n"
     fi
