@@ -26,7 +26,7 @@ import argparse
 
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
-input_processor = VLAInputProcessor(log_obs=False)
+input_processor = VLAInputProcessor(log_obs=False, resize_mode="1x1")  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
 
 def get_instruction(task_name):
 
@@ -439,9 +439,16 @@ def get_policy_wo_state():
     return policy  # Placeholder for actual policy loading logic
 
 def get_policy():
-    # PORT=14020 
-    PORT=14030 # 08/15/2025 tested
-    PORT=17020
+    # # PORT=14020 
+    # PORT=14030 # 08/15/2025 tested
+
+    # # Split data by ADC timepoint and object z > threshold for pick
+    # PORT=17020 # no aug, step 20k
+    # PORT=17030 # no aug, step 30k
+    # PORT=17040 # no aug, step 40k
+    PORT=18020 # aug, step~20k
+
+
     ip = "10.190.172.212"
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
