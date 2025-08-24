@@ -410,44 +410,51 @@ class VLAInputProcessor:
         
         
         
-    def _resize_image(self, img, target_size=(224, 224)):
+    def _resize_image(self, img, target_size=(224, 224), mode="1x1"):
         """
         Resize the image to the target size while maintaining aspect ratio.
         """
-        h, w = img.shape[:2]
-        target_aspect = 4 / 3
-        current_aspect = w / h
+        # Strategy 1: Pad the image to make it 4:3 aspect ratio, then resize to target size
+        if mode == "4x3":
+            h, w = img.shape[:2]
+            target_aspect = 4 / 3
+            current_aspect = w / h
 
-        # Allow small floating point tolerance
-        if abs(current_aspect - target_aspect) < 1e-3:
-            padded = img  # No padding needed
-        elif current_aspect > target_aspect:
-            # Image is too wide → pad height
-            new_h = int(w / target_aspect)
-            pad_total = new_h - h
-            pad_top = pad_total // 2
-            pad_bottom = pad_total - pad_top
-            padded = np.pad(
-                img,
-                ((pad_top, pad_bottom), (0, 0), (0, 0)),
-                mode="constant",
-                constant_values=0,
-            )
-        else:
-            # Image is too tall → pad width
-            new_w = int(h * target_aspect)
-            pad_total = new_w - w
-            pad_left = pad_total // 2
-            pad_right = pad_total - pad_left
-            padded = np.pad(
-                img,
-                ((0, 0), (pad_left, pad_right), (0, 0)),
-                mode="constant",
-                constant_values=0,
-            )
+            # Allow small floating point tolerance
+            if abs(current_aspect - target_aspect) < 1e-3:
+                padded = img  # No padding needed
+            elif current_aspect > target_aspect:
+                # Image is too wide → pad height
+                new_h = int(w / target_aspect)
+                pad_total = new_h - h
+                pad_top = pad_total // 2
+                pad_bottom = pad_total - pad_top
+                padded = np.pad(
+                    img,
+                    ((pad_top, pad_bottom), (0, 0), (0, 0)),
+                    mode="constant",
+                    constant_values=0,
+                )
+            else:
+                # Image is too tall → pad width
+                new_w = int(h * target_aspect)
+                pad_total = new_w - w
+                pad_left = pad_total // 2
+                pad_right = pad_total - pad_left
+                padded = np.pad(
+                    img,
+                    ((0, 0), (pad_left, pad_right), (0, 0)),
+                    mode="constant",
+                    constant_values=0,
+                )
 
-        img = Image.fromarray(padded)
-        img = img.resize(target_size, Image.LANCZOS)
+            img = Image.fromarray(padded)
+            img = img.resize(target_size, Image.LANCZOS)
+        elif mode == "1x1":
+            # Strategy 2: Directly resize to target size without padding
+            img = Image.fromarray(img)
+            img = img.resize(target_size, Image.LANCZOS)
+
         return np.array(img)
     
     def _get_unique_log_dir(self, base_dir, task_name):
