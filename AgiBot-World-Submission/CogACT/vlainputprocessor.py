@@ -26,9 +26,10 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=False):        
+    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize"):        
         
         self.log_obs = log_obs
+        self.resize_mode = resize_mode
         if self.log_obs:
             # Initialize log directory registry if logging is enabled
             self.task_name = "iros_pack_in_the_supermarket"  # Placeholder, can be set later
@@ -376,7 +377,7 @@ class VLAInputProcessor:
             The preprocessed image.
         """
         # Resize the image to a fixed size (e.g., 224x224)
-        img = self._resize_image(img, target_size=(224, 224))
+        img = self._resize_image(img, target_size=(224, 224), resize_mode=self.resize_mode)
         return img        
     
     def _obs_instruction(self, lang,  substep_index=0):
@@ -410,12 +411,12 @@ class VLAInputProcessor:
         
         
         
-    def _resize_image(self, img, target_size=(224, 224), mode="1x1"):
+    def _resize_image(self, img, target_size=(224, 224), resize_mode="4x3_pad_resize"):
         """
         Resize the image to the target size while maintaining aspect ratio.
         """
         # Strategy 1: Pad the image to make it 4:3 aspect ratio, then resize to target size
-        if mode == "4x3":
+        if resize_mode == "4x3_pad_resize":
             h, w = img.shape[:2]
             target_aspect = 4 / 3
             current_aspect = w / h
@@ -450,7 +451,7 @@ class VLAInputProcessor:
 
             img = Image.fromarray(padded)
             img = img.resize(target_size, Image.LANCZOS)
-        elif mode == "1x1":
+        elif resize_mode == "1x1":
             # Strategy 2: Directly resize to target size without padding
             img = Image.fromarray(img)
             img = img.resize(target_size, Image.LANCZOS)
