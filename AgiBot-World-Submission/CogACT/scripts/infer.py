@@ -480,7 +480,8 @@ def infer(policy, task_name):
                         act_raw = sim_ros_node.get_joint_state()
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
-                        if task_name == "iros_clear_countertop_waste" or task_name == "iros_pack_moving_objects_from_conveyor" \
+                        if task_name == "iros_clear_countertop_waste" or \
+                            (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
                             or task_name == "iros_make_a_sandwich" :
                             # or task_name =="iros_clear_table_in_the_restaurant":
                             num_steps = 1
