@@ -280,6 +280,15 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     return curr_task_substep_index, substep_inference_counter
 
 def infer(policy, task_name):
+    """
+    Main inference loop for robot task execution.
+    
+    Features:
+    - Records initial joint angles at startup
+    - Executes task substeps with configurable progression strategies
+    - Automatically returns to initial pose when task sequence completes and loops back
+    - Supports continuous task repetition
+    """
     
     
     rclpy.init()
@@ -301,6 +310,14 @@ def infer(policy, task_name):
     
     # Counter for inference steps in current substep
     substep_inference_counter = 0
+    
+    # Variables to store initial joint angles and track initialization
+    initial_joint_angles = None
+    is_initialized = False
+    
+    # Get total number of substeps for loop-back detection
+    total_substeps = get_num_substeps(task_name)
+    print(f"📊 Task '{task_name}' has {total_substeps} substeps")
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -344,7 +361,12 @@ def infer(policy, task_name):
                     print("No joint state received, skipping iteration.")
                     continue
 
-                
+                # Record initial joint angles on first valid iteration
+                if not is_initialized and act_raw.position is not None and len(act_raw.position) > 0:
+                    initial_joint_angles = np.array(act_raw.position).copy()
+                    is_initialized = True
+                    print(f"📝 Recorded initial joint angles: {initial_joint_angles}")
+
                 model_input = input_processor.process(
                     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
                 )
@@ -355,11 +377,37 @@ def infer(policy, task_name):
                 # print(f"instruction: {input["task_description"]}")
                 action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
                 
-                if action:
+                if action:                    
                     # Handle substep progression logic
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
                         action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="restrict_inference_count"
                     )
+                    
+                    # Check if we've completed all substeps and looped back to first instruction
+                    # This happens when we advance from the last substep (total_substeps - 1) to substep 0
+                    print(f"curr_task_substep_index: {curr_task_substep_index}, total_substeps: {total_substeps}")
+                    if (curr_task_substep_index > 0 and curr_task_substep_index % total_substeps == 0 and 
+                        is_initialized and initial_joint_angles is not None):
+                        print("🎉 Task sequence completed! Moving back to initial pose...")
+                        
+                        # Move to initial pose using interpolation
+                        current_joints = np.array(act_raw.position)
+                        target_joints = initial_joint_angles
+                        
+                        # Use more steps for returning to initial pose to ensure smooth movement
+                        num_steps = 10
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_steps)
+                        
+                        # Send interpolated joint commands to return to initial pose
+                        for step_idx, interp_joints in enumerate(interpolated_steps):
+                            sim_ros_node.publish_joint_command(interp_joints)
+                            print(f"🏠 Moving to initial pose - Step {step_idx + 1}/{num_steps}")
+                            sim_ros_node.loop_rate.sleep()
+                        
+                        print("✅ Returned to initial pose! Starting new task cycle...")
+                        
+                        # Update act_raw to reflect the new position
+                        act_raw = sim_ros_node.get_joint_state()
                     
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position, task_name=task_name)
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
@@ -541,6 +589,12 @@ def interpolate_joints(current_joints, target_joints, num_steps=5):
         interpolated_joints.append(interpolated.tolist())
     
     return interpolated_joints
+
+def get_num_substeps(task_name):
+    """Get the number of substeps for a given task."""
+    lang = get_instruction(task_name)
+    substeps = [action.strip() for action in lang.split(";") if action.strip()]
+    return len(substeps)
 
 if __name__ == "__main__":
     # Set up command line argument parsing
