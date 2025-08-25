@@ -318,6 +318,9 @@ def infer(policy, task_name):
     # Get total number of substeps for loop-back detection
     total_substeps = get_num_substeps(task_name)
     print(f"📊 Task '{task_name}' has {total_substeps} substeps")
+    
+    # Track whether we've returned to initial pose for this cycle
+    returned_to_initial_this_cycle = False
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -387,7 +390,7 @@ def infer(policy, task_name):
                     # This happens when we advance from the last substep (total_substeps - 1) to substep 0
                     print(f"curr_task_substep_index: {curr_task_substep_index}, total_substeps: {total_substeps}")
                     if (curr_task_substep_index > 0 and curr_task_substep_index % total_substeps == 0 and 
-                        is_initialized and initial_joint_angles is not None):
+                        is_initialized and initial_joint_angles is not None and not returned_to_initial_this_cycle):
                         print("🎉 Task sequence completed! Moving back to initial pose...")
                         
                         # Move to initial pose using interpolation
@@ -405,9 +408,14 @@ def infer(policy, task_name):
                             sim_ros_node.loop_rate.sleep()
                         
                         print("✅ Returned to initial pose! Starting new task cycle...")
+                        returned_to_initial_this_cycle = True
                         
                         # Update act_raw to reflect the new position
                         act_raw = sim_ros_node.get_joint_state()
+                    
+                    # Reset the flag when we start a new cycle (advance from substep 0)
+                    if curr_task_substep_index % total_substeps == 1:
+                        returned_to_initial_this_cycle = False
                     
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position, task_name=task_name)
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
