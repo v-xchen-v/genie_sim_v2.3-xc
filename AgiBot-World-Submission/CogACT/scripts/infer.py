@@ -121,10 +121,13 @@ def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
 
-def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input):
+def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"):
     """
     Handle substep progression logic based on task progress and inference counter.
     
+    mode: "by_progress" or "legacy"
+        "by_progress": Advance to the next substep if progress exceeds 0.95+ threshold or max inference counter
+        "legacy": Advance to the next substep only if progress exceeds a hard-code small threshold AND a hard-code big value min inference counter
     Returns:
         tuple: (new_curr_task_substep_index, new_substep_inference_counter)
     """
@@ -135,18 +138,18 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     
     # New strategy: Combined progress threshold and inference counter
     # Define minimum progress threshold per task
-    # progress_threshold_dict = {
-    #     "iros_pack_in_the_supermarket": 0.3,
-    #     "iros_restock_supermarket_items": 0.9,
-    #     "iros_stamp_the_seal": 0.99,
-    #     "iros_clear_the_countertop_waste": 0.4,
-    #     "iros_clear_table_in_the_restaurant": 0.6,
-    #     "iros_heat_the_food_in_the_microwave": 0.6,
-    #     "iros_open_drawer_and_store_items": 0.4,
-    #     "iros_pack_moving_objects_from_conveyor": 0.4,
-    #     "iros_pickup_items_from_the_freezer": 0.4,
-    #     "iros_make_a_sandwich": 0.9,
-    # }
+    progress_threshold_dict = {
+        "iros_pack_in_the_supermarket": 0.3,
+        "iros_restock_supermarket_items": 0.9,
+        "iros_stamp_the_seal": 0.99,
+        "iros_clear_the_countertop_waste": 0.4,
+        "iros_clear_table_in_the_restaurant": 0.6,
+        "iros_heat_the_food_in_the_microwave": 0.6,
+        "iros_open_drawer_and_store_items": 0.4,
+        "iros_pack_moving_objects_from_conveyor": 0.4,
+        "iros_pickup_items_from_the_freezer": 0.4,
+        "iros_make_a_sandwich": 0.9,
+    }
     
     # Define minimum inference counter per task
     min_inference_counter_dict = {
@@ -164,65 +167,66 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     }
     
     # Get thresholds for current task
-    # progress_threshold = progress_threshold_dict.get(task_name, 0.4)
+    progress_threshold = progress_threshold_dict.get(task_name, 0.4)
     min_inference_counter = min_inference_counter_dict.get(task_name, 6)
     
-    # Strategy 1: Advance next substep based on progress signal and the pre-defined progress threshold
-    progress_list = np.array(task_substep_progress[0]) # [num_steps, 1]
-    # Check if any progress value exceeds the threshold
-    progress_threshold = 0.95  # Default threshold, can be adjusted per task if need
+    if mode != "legacy":
+        # Strategy 1 (if progress signal is reliable): Advance next substep based on progress signal and the pre-defined progress threshold
+        progress_list = np.array(task_substep_progress[0]) # [num_steps, 1]
+        # Check if any progress value exceeds the threshold
+        progress_threshold = 0.95  # Default threshold, can be adjusted per task if need
 
-    # Define maximum inference counter per task
-    max_inference_counter_dict = {
-        # "iros_pack_in_the_supermarket": 20,
-        "iros_pack_in_the_supermarket": 48, # 1-8 steps
-        # "iros_restock_supermarket_items": 5, # 1-16 steps
-        # "iros_stamp_the_seal": 10,
-        # "iros_clear_the_countertop_waste": 6,
-        # "iros_clear_table_in_the_restaurant": 10,
-        "iros_heat_the_food_in_the_microwave": 40, # 1-8 steps
-        # "iros_open_drawer_and_store_items": 32,
-        # "iros_pack_moving_objects_from_conveyor": 6,
-        # "iros_pickup_items_from_the_freezer": 24,
-        # "iros_make_a_sandwich": 12,
-    }
+        # Define maximum inference counter per task
+        max_inference_counter_dict = {
+            # "iros_pack_in_the_supermarket": 20,
+            "iros_pack_in_the_supermarket": 48, # 1-8 steps
+            # "iros_restock_supermarket_items": 5, # 1-16 steps
+            # "iros_stamp_the_seal": 10,
+            # "iros_clear_the_countertop_waste": 6,
+            # "iros_clear_table_in_the_restaurant": 10,
+            "iros_heat_the_food_in_the_microwave": 40, # 1-8 steps
+            # "iros_open_drawer_and_store_items": 32,
+            # "iros_pack_moving_objects_from_conveyor": 6,
+            # "iros_pickup_items_from_the_freezer": 24,
+            # "iros_make_a_sandwich": 12,
+        }
 
-    max_inference_counter = max_inference_counter_dict.get(task_name, 20)
+        max_inference_counter = max_inference_counter_dict.get(task_name, 20)
 
-    # Check if the substep inference counter exceeds the maximum allowed
-    already_failed = substep_inference_counter >= max_inference_counter
-    # Check if the progress exceeds the threshold
-    already_succeeded = np.any(progress_list > progress_threshold)
-    # If either condition is met, advance to the next substep
-    if already_failed or already_succeeded:
-        print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold})")
-        curr_task_substep_index += 1
-        substep_inference_counter = 0  # Reset counter for new substep
-    else:
-        print(f"❌ NOT ADVANCING: Progress ({task_substep_progress[0][0]:.3f} <= {progress_threshold})")    
+        # Check if the substep inference counter exceeds the maximum allowed
+        already_failed = substep_inference_counter >= max_inference_counter
+        # Check if the progress exceeds the threshold
+        already_succeeded = np.any(progress_list > progress_threshold)
+        # If either condition is met, advance to the next substep
+        if already_failed or already_succeeded:
+            print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold})")
+            curr_task_substep_index += 1
+            substep_inference_counter = 0  # Reset counter for new substep
+        else:
+            print(f"❌ NOT ADVANCING: Progress ({task_substep_progress[0][0]:.3f} <= {progress_threshold})")    
 
-    
-    # # Check both conditions: progress above threshold AND counter above minimum
-    # if ((task_substep_progress[0][0] > progress_threshold and 
-    #     substep_inference_counter >= min_inference_counter)):
-    #     # or (task_substep_progress[0][0] > progress_threshold and progress_threshold > 0.95):
-    #     curr_task_substep_index += 1
-    #     substep_inference_counter = 0  # Reset counter for new substep
-    #     print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter ({substep_inference_counter} >= {min_inference_counter})")
-    #     print(f"Task substep index updated to: {curr_task_substep_index}")
-    # else:
-    #     progress_ok = "✅" if task_substep_progress[0][0] > progress_threshold else "❌"
-    #     counter_ok = "✅" if substep_inference_counter >= min_inference_counter else "❌"
-    #     print(f"STAYING: Progress {progress_ok} ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter {counter_ok} ({substep_inference_counter} >= {min_inference_counter})")
-    
-    # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
-    # print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
-    # user_input = input().strip().lower()
-    # if user_input == "yes" or user_input == "y":
-    #     curr_task_substep_index += 1
-    #     print(f"Task substep index updated to: {curr_task_substep_index}")
-    # else:
-    #     print(f"Continuing with current substep: {curr_task_substep_index}")
+    elif mode == "legacy":
+        # Check both conditions: progress above threshold AND counter above minimum
+        if ((task_substep_progress[0][0] > progress_threshold and 
+            substep_inference_counter >= min_inference_counter)):
+            # or (task_substep_progress[0][0] > progress_threshold and progress_threshold > 0.95):
+            curr_task_substep_index += 1
+            substep_inference_counter = 0  # Reset counter for new substep
+            print(f"✅ ADVANCING: Progress ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter ({substep_inference_counter} >= {min_inference_counter})")
+            print(f"Task substep index updated to: {curr_task_substep_index}")
+        else:
+            progress_ok = "✅" if task_substep_progress[0][0] > progress_threshold else "❌"
+            counter_ok = "✅" if substep_inference_counter >= min_inference_counter else "❌"
+            print(f"STAYING: Progress {progress_ok} ({task_substep_progress[0][0]:.3f} > {progress_threshold}) AND Counter {counter_ok} ({substep_inference_counter} >= {min_inference_counter})")
+        
+        # option 2: switch task substep by user input (manual control), temporary approach when progress is not reliable
+        # print("Do you want to advance to the next substep? (yes/no): ", end="", flush=True)
+        # user_input = input().strip().lower()
+        # if user_input == "yes" or user_input == "y":
+        #     curr_task_substep_index += 1
+        #     print(f"Task substep index updated to: {curr_task_substep_index}")
+        # else:
+        #     print(f"Continuing with current substep: {curr_task_substep_index}")
     
     return curr_task_substep_index, substep_inference_counter
 
@@ -305,7 +309,7 @@ def infer(policy, task_name):
                 if action:
                     # Handle substep progression logic
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"
                     )
                     
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position, task_name=task_name)
@@ -441,12 +445,14 @@ def get_policy_wo_state():
 def get_policy():
     # # PORT=14020 
     # PORT=14030 # 08/15/2025 tested
+    # PORT=15030 # predict 1 step
+    # PORT=16030 # predict 3 step
 
     # # Split data by ADC timepoint and object z > threshold for pick
     # PORT=17020 # no aug, step 20k
-    # PORT=17030 # no aug, step 30k
+    PORT=17030 # no aug, step 30k
     # PORT=17040 # no aug, step 40k
-    PORT=18020 # aug, step~20k
+    # PORT=18020 # aug, step~20k
 
 
     ip = "10.190.172.212"
