@@ -144,7 +144,7 @@ def get_task_progression_config():
             "iros_clear_table_in_the_restaurant": 10,
             "iros_heat_the_food_in_the_microwave": 40,
             "iros_open_drawer_and_store_items": 32,
-            "iros_pack_moving_objects_from_conveyor": 6,
+            "iros_pack_moving_objects_from_conveyor": 6, # steps: 4, 8, 12, 16
             "iros_pickup_items_from_the_freezer": 24,
             "iros_make_a_sandwich": 12,
         },
@@ -358,7 +358,7 @@ def infer(policy, task_name):
                 if action:
                     # Handle substep progression logic
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="restrict_inference_count"
                     )
                     
                 joint_cmd = ee_to_joint_processor.get_joint_cmd(action, head_joint_cfg, curr_arm_joint_angles=act_raw.position, task_name=task_name)
