@@ -107,68 +107,6 @@ def redirect_print_to_logging(logger):
     log_capture = LogCapture(logger)
     return log_capture
 
-def merge_video_segments(task_log_dir, task_name, total_segments):
-    """Merge all video segments into one final video"""
-    try:
-        import imageio
-        print(f"🎬 Merging {total_segments + 1} video segments...")
-        
-        # Create final video writer with same fps as segments
-        VIDEO_FPS = 2  # Match the fps used in segments
-        final_video_path = os.path.join(task_log_dir, f"{task_name}_inference_complete.mp4")
-        final_writer = imageio.get_writer(final_video_path, fps=VIDEO_FPS)
-        
-        # Read and merge all segments
-        for segment_idx in range(total_segments + 1):
-            segment_path = os.path.join(task_log_dir, f"{task_name}_inference_segment_{segment_idx:03d}.mp4")
-            if os.path.exists(segment_path):
-                print(f"  📹 Processing segment {segment_idx:03d}...")
-                reader = imageio.get_reader(segment_path)
-                for frame in reader:
-                    final_writer.append_data(frame)
-                reader.close()
-            else:
-                print(f"  ⚠️ Segment {segment_idx:03d} not found: {segment_path}")
-        
-        final_writer.close()
-        print(f"✅ Video segments merged successfully: {final_video_path}")
-        
-        # Optionally remove individual segments to save space
-        # for segment_idx in range(total_segments + 1):
-        #     segment_path = os.path.join(task_log_dir, f"{task_name}_inference_segment_{segment_idx:03d}.mp4")
-        #     if os.path.exists(segment_path):
-        #         os.remove(segment_path)
-        #         print(f"  🗑️ Removed segment {segment_idx:03d}")
-        
-    except Exception as e:
-        print(f"❌ Error merging video segments: {e}")
-
-def cleanup_video():
-    """Cleanup function to ensure video is saved on exit"""
-    global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
-    if video_writer_global:
-        try:
-            video_writer_global.close()
-            print(f"🎥 Final video segment {video_segment_counter_global:03d} saved successfully on exit")
-            
-            # If we have multiple segments, merge them
-            if video_segment_counter_global > 0 and task_log_dir_global and task_name_global:
-                merge_video_segments(task_log_dir_global, task_name_global, video_segment_counter_global)
-            
-        except Exception as e:
-            print(f"⚠️ Error closing final video segment on exit: {e}")
-
-def signal_handler(sig, frame):
-    """Handle interrupt signals for graceful shutdown"""
-    print(f"\n🛑 Received signal {sig}, cleaning up...")
-    cleanup_video()
-    sys.exit(0)
-
-# Register cleanup handlers
-atexit.register(cleanup_video)
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
 input_processor = VLAInputProcessor(log_obs=False, resize_mode="1x1")  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
