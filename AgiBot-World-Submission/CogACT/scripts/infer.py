@@ -144,7 +144,7 @@ def get_task_progression_config():
             "iros_clear_table_in_the_restaurant": 10,
             "iros_heat_the_food_in_the_microwave": 40,
             "iros_open_drawer_and_store_items": 32,
-            "iros_pack_moving_objects_from_conveyor": 6, # steps: 4, 8, 12, 16
+            "iros_pack_moving_objects_from_conveyor": 10, # steps: 4, 8, 12, 16, 6 is enough for pickup directly but not enough for failed and retry
             "iros_pickup_items_from_the_freezer": 24,
             "iros_make_a_sandwich": 12,
         },
@@ -446,7 +446,12 @@ def infer(policy, task_name):
                     execution_steps = [0, 1, 2, 3]
                 elif task_name == "iros_pack_moving_objects_from_conveyor":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    execution_steps = execution_steps[::4]  # Take every 4th step for execution
+
+                    if curr_task_substep_index % total_substeps == 0: # must be fast to pick up object from conveyor, so that use less steps
+                        execution_steps = execution_steps[::4]  # Take every 4th step for execution
+                    else:
+                        execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
+
                 elif task_name == "iros_pickup_items_from_the_freezer":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                     # execution_steps = [0, 1, 2, 3]
