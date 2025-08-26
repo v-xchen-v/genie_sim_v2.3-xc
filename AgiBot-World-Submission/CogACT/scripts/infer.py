@@ -23,6 +23,75 @@ from pathlib import Path
 
 import time
 import argparse
+import signal
+import atexit
+
+# Global variables for cleanup
+video_writer_global = None
+video_segment_counter_global = 0
+task_log_dir_global = None
+task_name_global = None
+
+def merge_video_segments(task_log_dir, task_name, total_segments):
+    """Merge all video segments into one final video"""
+    try:
+        import imageio
+        print(f"🎬 Merging {total_segments + 1} video segments...")
+        
+        # Create final video writer
+        final_video_path = os.path.join(task_log_dir, f"{task_name}_inference_complete.mp4")
+        final_writer = imageio.get_writer(final_video_path, fps=10)
+        
+        # Read and merge all segments
+        for segment_idx in range(total_segments + 1):
+            segment_path = os.path.join(task_log_dir, f"{task_name}_inference_segment_{segment_idx:03d}.mp4")
+            if os.path.exists(segment_path):
+                print(f"  📹 Processing segment {segment_idx:03d}...")
+                reader = imageio.get_reader(segment_path)
+                for frame in reader:
+                    final_writer.append_data(frame)
+                reader.close()
+            else:
+                print(f"  ⚠️ Segment {segment_idx:03d} not found: {segment_path}")
+        
+        final_writer.close()
+        print(f"✅ Video segments merged successfully: {final_video_path}")
+        
+        # Optionally remove individual segments to save space
+        # for segment_idx in range(total_segments + 1):
+        #     segment_path = os.path.join(task_log_dir, f"{task_name}_inference_segment_{segment_idx:03d}.mp4")
+        #     if os.path.exists(segment_path):
+        #         os.remove(segment_path)
+        #         print(f"  🗑️ Removed segment {segment_idx:03d}")
+        
+    except Exception as e:
+        print(f"❌ Error merging video segments: {e}")
+
+def cleanup_video():
+    """Cleanup function to ensure video is saved on exit"""
+    global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
+    if video_writer_global:
+        try:
+            video_writer_global.close()
+            print(f"🎥 Final video segment {video_segment_counter_global:03d} saved successfully on exit")
+            
+            # If we have multiple segments, merge them
+            if video_segment_counter_global > 0 and task_log_dir_global and task_name_global:
+                merge_video_segments(task_log_dir_global, task_name_global, video_segment_counter_global)
+            
+        except Exception as e:
+            print(f"⚠️ Error closing final video segment on exit: {e}")
+
+def signal_handler(sig, frame):
+    """Handle interrupt signals for graceful shutdown"""
+    print(f"\n🛑 Received signal {sig}, cleaning up...")
+    cleanup_video()
+    sys.exit(0)
+
+# Register cleanup handlers
+atexit.register(cleanup_video)
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
@@ -285,6 +354,26 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     
     return curr_task_substep_index, substep_inference_counter
 
+def _get_unique_log_dir(base_dir, task_name):
+    """
+    base_dir/
+    └── task_name/
+        ├── iter_1/
+        ├── iter_2/
+        └── ...
+        """
+    task_base_dir = os.path.join(base_dir, task_name)
+    os.makedirs(task_base_dir, exist_ok=True)
+
+    i = 1
+    while True:
+        iter_log_dir = os.path.join(task_base_dir, f"iter_{i}")
+        if not os.path.exists(iter_log_dir):
+            os.makedirs(iter_log_dir)
+            return iter_log_dir
+        i += 1
+
+
 def infer(policy, task_name):
     """
     Main inference loop for robot task execution.
@@ -294,7 +383,9 @@ def infer(policy, task_name):
     - Executes task substeps with configurable progression strategies
     - Automatically returns to initial pose when task sequence completes and loops back
     - Supports continuous task repetition
+    - Saves video in multiple segments for robustness against unexpected exits
     """
+    global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
     
     
     rclpy.init()
@@ -327,6 +418,21 @@ def infer(policy, task_name):
     
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
+
+    # Define log directory for video recordings
+    log_dir = "./video_recordings"
+    task_log_dir = _get_unique_log_dir(log_dir, task_name)
+    
+    # Set global variables for cleanup
+    task_log_dir_global = task_log_dir
+    task_name_global = task_name
+
+    import imageio
+    video_segment_counter = 0
+    video_segment_counter_global = video_segment_counter
+    video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=1)
+    video_writer_global = video_writer
+    print(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -361,7 +467,31 @@ def infer(policy, task_name):
                 # cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
                 # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
-                
+                # img_h_pil = Image.fromarray(img_h)
+                # img_l_pil = Image.fromarray(img_l)
+                # img_r_pil = Image.fromarray(img_r)
+
+                # Process image to same height before combining
+                target_height = 224
+                img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
+                img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
+                img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
+
+                # Combine images side by side for video
+                combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
+                # rgb to bgr for opencv
+                combined_img = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+                video_writer.append_data(combined_img)
+
+                # save the video before exit
+                SAVE_VIDEO_EVERY_N_INFERENCE = 10
+                if count % SAVE_VIDEO_EVERY_N_INFERENCE == 0 and count > 0:
+                    video_writer.close()
+                    video_segment_counter += 1
+                    video_segment_counter_global = video_segment_counter
+                    video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=1)
+                    video_writer_global = video_writer
+                    print(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -506,6 +636,24 @@ def infer(policy, task_name):
                             if interp_joints == interpolated_steps[-1]:
                                 print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7])}, Right gripper joint angle: {np.rad2deg(interp_joints[15])}")
                             sim_ros_node.loop_rate.sleep()
+
+    # Cleanup: Close the final video segment and merge if multiple segments exist
+    if video_writer:
+        try:
+            video_writer.close()
+            video_writer_global = None  # Clear global reference
+            print(f"🎥 Final video segment {video_segment_counter:03d} saved successfully")
+            
+            # If we have multiple segments, merge them into one final video
+            if video_segment_counter > 0:
+                print("🎬 Normal exit detected - merging video segments...")
+                merge_video_segments(task_log_dir, task_name, video_segment_counter)
+            else:
+                print("🎥 Single video segment created - no merging needed")
+                
+        except Exception as e:
+            print(f"⚠️ Error closing final video segment: {e}")
+
 
 
 def _action_task_substep_progress(action_raw):
