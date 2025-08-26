@@ -38,9 +38,10 @@ def merge_video_segments(task_log_dir, task_name, total_segments):
         import imageio
         print(f"🎬 Merging {total_segments + 1} video segments...")
         
-        # Create final video writer
+        # Create final video writer with same fps as segments
+        VIDEO_FPS = 2  # Match the fps used in segments
         final_video_path = os.path.join(task_log_dir, f"{task_name}_inference_complete.mp4")
-        final_writer = imageio.get_writer(final_video_path, fps=10)
+        final_writer = imageio.get_writer(final_video_path, fps=VIDEO_FPS)
         
         # Read and merge all segments
         for segment_idx in range(total_segments + 1):
@@ -374,7 +375,7 @@ def _get_unique_log_dir(base_dir, task_name):
         i += 1
 
 
-def infer(policy, task_name):
+def infer(policy, task_name, enable_video_recording=False):
     """
     Main inference loop for robot task execution.
     
@@ -383,7 +384,12 @@ def infer(policy, task_name):
     - Executes task substeps with configurable progression strategies
     - Automatically returns to initial pose when task sequence completes and loops back
     - Supports continuous task repetition
-    - Saves video in multiple segments for robustness against unexpected exits
+    - Saves video in multiple segments for robustness against unexpected exits (optional)
+    
+    Args:
+        policy: The policy object for inference
+        task_name: Name of the task to execute
+        enable_video_recording: Whether to record video during inference (default: False)
     """
     global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
     
@@ -419,20 +425,28 @@ def infer(policy, task_name):
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
 
-    # Define log directory for video recordings
-    log_dir = "./video_recordings"
-    task_log_dir = _get_unique_log_dir(log_dir, task_name)
-    
-    # Set global variables for cleanup
-    task_log_dir_global = task_log_dir
-    task_name_global = task_name
-
-    import imageio
+    # Initialize video recording variables (only if enabled)
+    video_writer = None
     video_segment_counter = 0
-    video_segment_counter_global = video_segment_counter
-    video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=1)
-    video_writer_global = video_writer
-    print(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
+    task_log_dir = None
+    
+    if enable_video_recording:
+        # Define log directory for video recordings
+        log_dir = "./video_recordings"
+        task_log_dir = _get_unique_log_dir(log_dir, task_name)
+        
+        # Set global variables for cleanup
+        task_log_dir_global = task_log_dir
+        task_name_global = task_name
+
+        import imageio
+        video_segment_counter_global = video_segment_counter
+        VIDEO_FPS = 2 
+        video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
+        video_writer_global = video_writer
+        print(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
+    else:
+        print("📵 Video recording disabled")
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -471,27 +485,30 @@ def infer(policy, task_name):
                 # img_l_pil = Image.fromarray(img_l)
                 # img_r_pil = Image.fromarray(img_r)
 
-                # Process image to same height before combining
-                target_height = 224
-                img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
-                img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
-                img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
+                # Process and record video if enabled
+                if enable_video_recording and video_writer:
+                    # Process image to same height before combining
+                    target_height = 224
+                    img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
+                    img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
+                    img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
 
-                # Combine images side by side for video
-                combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-                # rgb to bgr for opencv
-                combined_img = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
-                video_writer.append_data(combined_img)
+                    # Combine images side by side for video
+                    combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
+                    # rgb to bgr for opencv
+                    combined_img = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+                    video_writer.append_data(combined_img)
 
-                # save the video before exit
-                SAVE_VIDEO_EVERY_N_INFERENCE = 10
-                if count % SAVE_VIDEO_EVERY_N_INFERENCE == 0 and count > 0:
-                    video_writer.close()
-                    video_segment_counter += 1
-                    video_segment_counter_global = video_segment_counter
-                    video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=1)
-                    video_writer_global = video_writer
-                    print(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
+                    # save the video before exit
+                    SAVE_VIDEO_EVERY_N_INFERENCE = 10
+                    if count % SAVE_VIDEO_EVERY_N_INFERENCE == 0 and count > 0:
+                        video_writer.close()
+                        video_segment_counter += 1
+                        video_segment_counter_global = video_segment_counter
+                        VIDEO_FPS = 2  # Define VIDEO_FPS here if not already defined
+                        video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
+                        video_writer_global = video_writer
+                        print(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -637,8 +654,8 @@ def infer(policy, task_name):
                                 print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7])}, Right gripper joint angle: {np.rad2deg(interp_joints[15])}")
                             sim_ros_node.loop_rate.sleep()
 
-    # Cleanup: Close the final video segment and merge if multiple segments exist
-    if video_writer:
+    # Cleanup: Close the final video segment and merge if multiple segments exist (only if video recording was enabled)
+    if enable_video_recording and video_writer:
         try:
             video_writer.close()
             video_writer_global = None  # Clear global reference
@@ -653,6 +670,10 @@ def infer(policy, task_name):
                 
         except Exception as e:
             print(f"⚠️ Error closing final video segment: {e}")
+    elif enable_video_recording:
+        print("📵 Video recording was enabled but no video writer was initialized")
+    else:
+        print("📵 Video recording was disabled - no cleanup needed")
 
 
 
@@ -781,10 +802,12 @@ if __name__ == "__main__":
                             "iros_pickup_items_from_the_freezer"
                         ],
                         help='Name of the task to run')
+    parser.add_argument('--enable_video_recording', action='store_true', default=False,
+                        help='Enable video recording of inference images. Videos are saved as segments and merged on normal exit. (default: False)')
     
     args = parser.parse_args()
 
     policy = get_policy()
     # policy = get_policy_wo_state()
     
-    infer(policy, args.task_name)
+    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording)
