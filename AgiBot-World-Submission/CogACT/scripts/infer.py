@@ -272,6 +272,12 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     else:
         raise ValueError(f"Unknown mode: {mode}. Use 'legacy', 'restrict_progress', 'by_progress', or 'restrict_inference_count'")
     
+    # hard-code seting for pack_moving_objects_from_conveyor, since current the model is not very good at progress prediction, when the model is ready,
+    # remove this hard-code
+    if task_name == "iros_pack_moving_objects_from_conveyor":
+        mode = "restrict_inference_count"
+        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+
     # Update indices if advancing
     if should_advance:
         curr_task_substep_index += 1
@@ -383,7 +389,7 @@ def infer(policy, task_name):
                 if action:                    
                     # Handle substep progression logic
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="restrict_inference_count"
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"
                     )
                     
                     # Check if we've completed all substeps and looped back to first instruction
