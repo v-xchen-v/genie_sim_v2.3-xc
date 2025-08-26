@@ -742,29 +742,6 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                                 logger.debug(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
 
-    # Cleanup: Close the final video segment and merge if multiple segments exist (only if video recording was enabled)
-    if enable_video_recording and video_writer:
-        try:
-            video_writer.close()
-            video_writer_global = None  # Clear global reference
-            logger.info(f"🎥 Final video segment {video_segment_counter:03d} saved successfully")
-            
-            # If we have multiple segments, merge them into one final video
-            if video_segment_counter > 0:
-                logger.info("🎬 Normal exit detected - merging video segments...")
-                merge_video_segments(task_log_dir, task_name, video_segment_counter)
-            else:
-                logger.info("🎥 Single video segment created - no merging needed")
-                
-        except Exception as e:
-            logger.error(f"⚠️ Error closing final video segment: {e}")
-    elif enable_video_recording:
-        logger.warning("📵 Video recording was enabled but no video writer was initialized")
-    else:
-        logger.info("📵 Video recording was disabled - no cleanup needed")
-    
-    logger.info("🏁 Inference completed")
-
 
 
 def _action_task_substep_progress(action_raw):
