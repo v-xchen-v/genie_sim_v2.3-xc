@@ -397,13 +397,13 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     - Executes task substeps with configurable progression strategies
     - Automatically returns to initial pose when task sequence completes and loops back
     - Supports continuous task repetition
-    - Saves video in multiple segments for robustness against unexpected exits (optional)
+    - Saves individual images during inference for debugging and analysis (optional)
     - Logs output to both console and file (optional)
     
     Args:
         policy: The policy object for inference
         task_name: Name of the task to execute
-        enable_video_recording: Whether to record video during inference (default: False)
+        enable_video_recording: Whether to save individual images during inference (default: False)
         enable_file_logging: Whether to save logs to file (default: True)
     """
     global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
@@ -419,7 +419,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     count = 0
     SIM_INIT_TIME = 8
 
-    # Set up logging directory (shared with video if enabled)
+    # Set up logging directory (shared with image saving if enabled)
     log_dir = "./inference_logs" if not enable_video_recording else "./video_recordings"
     if enable_video_recording:
         task_log_dir = _get_unique_log_dir(log_dir, task_name)
@@ -456,23 +456,20 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
 
-    # Initialize video recording variables (only if enabled)
-    video_writer = None
-    video_segment_counter = 0
-    
-    if enable_video_recording:
+    # Initialize image saving variables (only if enabled)
+    if enable_video_recording:  # Note: despite the name, this now saves individual images
         # Set global variables for cleanup
         task_log_dir_global = task_log_dir
         task_name_global = task_name
-
-        import imageio
-        video_segment_counter_global = video_segment_counter
-        VIDEO_FPS = 2 
-        video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
-        video_writer_global = video_writer
-        logger.info(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
+        
+        # Create images directory
+        images_dir = task_log_dir
+        os.makedirs(images_dir, exist_ok=True)
+        
+        logger.info(f"📷 Image saving enabled - images will be saved to: {images_dir}")
+        logger.info(f"📁 Image naming format: XXXXXX_[head|left_wrist|right_wrist|combined].jpg")
     else:
-        logger.info("📵 Video recording disabled")
+        logger.info("📵 Image saving disabled")
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -511,30 +508,32 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # img_l_pil = Image.fromarray(img_l)
                 # img_r_pil = Image.fromarray(img_r)
 
-                # Process and record video if enabled
-                if enable_video_recording and video_writer:
-                    # Process image to same height before combining
-                    target_height = 224
-                    img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
-                    img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
-                    img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
+                # Save individual images if video recording is enabled
+                if enable_video_recording:
+                    try:
+                        # Create images directory if it doesn't exist
+                        images_dir = os.path.join(task_log_dir)
+                        os.makedirs(images_dir, exist_ok=True)
+                        
+                        # Process image to same height before combining
+                        target_height = 224
+                        img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
+                        img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
+                        img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
 
-                    # Combine images side by side for video
-                    combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-                    # rgb to bgr for opencv
-                    combined_img = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
-                    video_writer.append_data(combined_img)
-
-                    # save the video before exit
-                    SAVE_VIDEO_EVERY_N_INFERENCE = 10
-                    if count % SAVE_VIDEO_EVERY_N_INFERENCE == 0 and count > 0:
-                        video_writer.close()
-                        video_segment_counter += 1
-                        video_segment_counter_global = video_segment_counter
-                        VIDEO_FPS = 2  # Define VIDEO_FPS here if not already defined
-                        video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
-                        video_writer_global = video_writer
-                        logger.info(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
+                        # Save individual camera images
+                        timestamp = f"{count:06d}"
+                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
+                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
+                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
+                        
+                        # Also save combined image
+                        combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
+                        # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+                        cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
+                            
+                    except Exception as e:
+                        logger.warning(f"Error saving images: {e}")
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -807,19 +806,13 @@ if __name__ == "__main__":
                             "iros_pickup_items_from_the_freezer"
                         ],
                         help='Name of the task to run')
-    parser.add_argument('--enable_video_recording', action='store_true', default=False,
-                        help='Enable video recording of inference images. Videos are saved as segments and merged on normal exit. (default: False)')
+    parser.add_argument('--enable_video_recording', action='store_true', default=True,
+                        help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
     parser.add_argument('--enable_file_logging', action='store_true', default=True,
-                        help='Enable logging to file in addition to console output. (default: True)')
-    parser.add_argument('--disable_file_logging', action='store_true', default=False,
-                        help='Disable file logging - console output only. Overrides --enable_file_logging. (default: False)')
-    
+                        help='Enable logging to file in addition to console output. (default: True), otherwise, console output only.')
     args = parser.parse_args()
-
-    # Handle logging flags (disable takes precedence)
-    enable_file_logging = args.enable_file_logging and not args.disable_file_logging
 
     policy = get_policy()
     # policy = get_policy_wo_state()
     
-    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording, enable_file_logging=enable_file_logging)
+    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording, enable_file_logging=args.enable_file_logging)
