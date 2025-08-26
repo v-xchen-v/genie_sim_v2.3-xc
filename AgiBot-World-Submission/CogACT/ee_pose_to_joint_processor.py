@@ -48,6 +48,9 @@ class EEtoJointProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
+        
+        # Gripper scaling strategy configuration
+        self.gripper_strategy = "larger_two_side"  # Default to new strategy
 
         
     
@@ -184,6 +187,10 @@ class EEtoJointProcessor:
         calculate gripper command from vla action.
         the gripper value is in [0, 1], where 0 is fully open and 1 is fully closed.
         we need to *70 for the gripper joint command.
+        
+        Supports two strategies:
+        1. "larger_one_side": Original strategy - amplify on one side
+        2. "larger_two_side": New strategy - amplify on both sides around center
         """
         if arm not in ["left", "right"]:
             raise ValueError("Arm must be 'left' or 'right'.")
@@ -209,11 +216,25 @@ class EEtoJointProcessor:
 
         gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
 
+        # Use configured gripper scaling strategy
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
         # ratio = 1.2/0.7853981633974483  # for testing
         ratio = 1.2/0.7
-        gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
+        
+        if self.gripper_strategy == "larger_one_side":
+            # Strategy 1: Original - larger on one side (amplify values directly)
+            gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
+        elif self.gripper_strategy == "larger_two_side":
+            # Strategy 2: New - larger on both sides around center
+            # Transform gripper values: (value - 0.5) * ratio, then map back to larger range
+            gripper_transformed = (gripper_act_value - 0.5) * ratio
+            # Map back to larger range around [0, 1]
+            gripper_cmd_joint = np.clip(gripper_transformed + 0.5, 0, 1)  # [num_steps, 1]
+        else:
+            raise ValueError(f"Unknown gripper strategy: {self.gripper_strategy}")
+        
+        print(f"Using gripper strategy: {self.gripper_strategy} for {arm} arm")
 
         # Apply gripper signal filter
         gripper_singal_filter = GripperSignalFilter(
@@ -225,13 +246,17 @@ class EEtoJointProcessor:
             monotone=None           # or 'closing'/'opening' inside known phases
         )
         
-        # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
-        max_value = np.max(gripper_cmd_joint)
-        max_index = np.argmax(gripper_cmd_joint)
+        # to handle the gripper signal drop to zero suddenly in pickup phase, the later model fixed it, then we skip this part
+        # # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
+        # max_value = np.max(gripper_cmd_joint)
+        # max_index = np.argmax(gripper_cmd_joint)
         
-        # Fill values after max index with the max value
+        # # Fill values after max index with the max value
+        # gripper_cmd_joint_processed = gripper_cmd_joint.copy()
+        # gripper_cmd_joint_processed[max_index:] = max_value
+
+
         gripper_cmd_joint_processed = gripper_cmd_joint.copy()
-        gripper_cmd_joint_processed[max_index:] = max_value
 
         filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
         for i in range(gripper_cmd_joint_processed.shape[0]):
@@ -589,3 +614,17 @@ class EEtoJointProcessor:
         T_real2sim = np.linalg.inv(T_sim2real)  # T_real2sim
         T_obj_in_realcam = T_real2sim @ T_obj_in_simcam
         return T_obj_in_realcam
+
+    def set_gripper_strategy(self, strategy: str):
+        """
+        Set the gripper scaling strategy.
+        
+        Args:
+            strategy: Either "larger_one_side" or "larger_two_side"
+                - "larger_one_side": Original strategy - amplify values directly
+                - "larger_two_side": New strategy - amplify on both sides around center
+        """
+        if strategy not in ["larger_one_side", "larger_two_side"]:
+            raise ValueError(f"Invalid gripper strategy: {strategy}. Must be 'larger_one_side' or 'larger_two_side'")
+        self.gripper_strategy = strategy
+        print(f"Gripper strategy set to: {strategy}")
