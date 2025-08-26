@@ -25,12 +25,87 @@ import time
 import argparse
 import signal
 import atexit
+import logging
+from datetime import datetime
 
 # Global variables for cleanup
 video_writer_global = None
 video_segment_counter_global = 0
 task_log_dir_global = None
 task_name_global = None
+
+def setup_logging(log_dir, task_name, enable_file_logging=True):
+    """
+    Set up logging to output to both console and file.
+    
+    Args:
+        log_dir: Directory to save log files
+        task_name: Name of the task (used in log filename)
+        enable_file_logging: Whether to enable file logging (default: True)
+    
+    Returns:
+        str: Path to the log file if file logging is enabled, None otherwise
+    """
+    # Create a custom logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # Clear any existing handlers
+    logger.handlers.clear()
+    
+    # Create formatters
+    formatter = logging.Formatter(
+        '%(asctime)s | %(levelname)s | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Console handler (always enabled)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    log_file_path = None
+    if enable_file_logging:
+        # File handler (optional)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = os.path.join(log_dir, f"{task_name}_inference_{timestamp}.log")
+        
+        file_handler = logging.FileHandler(log_file_path)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        
+        logger.info(f"📝 Logging to file: {log_file_path}")
+    else:
+        logger.info("📝 File logging disabled - console output only")
+    
+    return log_file_path
+
+class LogCapture:
+    """Capture print statements and redirect them to logging"""
+    
+    def __init__(self, logger):
+        self.logger = logger
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+    
+    def write(self, message):
+        # Filter out empty messages and newlines
+        message = message.strip()
+        if message:
+            self.logger.info(message)
+        # Also write to original stdout for immediate console output
+        self.original_stdout.write(message + '\n' if message else '\n')
+        self.original_stdout.flush()
+    
+    def flush(self):
+        self.original_stdout.flush()
+
+def redirect_print_to_logging(logger):
+    """Redirect print statements to logging while keeping console output"""
+    log_capture = LogCapture(logger)
+    return log_capture
 
 def merge_video_segments(task_log_dir, task_name, total_segments):
     """Merge all video segments into one final video"""
@@ -375,7 +450,7 @@ def _get_unique_log_dir(base_dir, task_name):
         i += 1
 
 
-def infer(policy, task_name, enable_video_recording=False):
+def infer(policy, task_name, enable_video_recording=False, enable_file_logging=True):
     """
     Main inference loop for robot task execution.
     
@@ -385,11 +460,13 @@ def infer(policy, task_name, enable_video_recording=False):
     - Automatically returns to initial pose when task sequence completes and loops back
     - Supports continuous task repetition
     - Saves video in multiple segments for robustness against unexpected exits (optional)
+    - Logs output to both console and file (optional)
     
     Args:
         policy: The policy object for inference
         task_name: Name of the task to execute
         enable_video_recording: Whether to record video during inference (default: False)
+        enable_file_logging: Whether to save logs to file (default: True)
     """
     global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
     
@@ -404,8 +481,24 @@ def infer(policy, task_name, enable_video_recording=False):
     count = 0
     SIM_INIT_TIME = 8
 
+    # Set up logging directory (shared with video if enabled)
+    log_dir = "./inference_logs" if not enable_video_recording else "./video_recordings"
+    if enable_video_recording:
+        task_log_dir = _get_unique_log_dir(log_dir, task_name)
+        log_file_path = setup_logging(task_log_dir, task_name, enable_file_logging)
+    else:
+        os.makedirs(log_dir, exist_ok=True)
+        task_log_dir = _get_unique_log_dir(log_dir, task_name)
+        log_file_path = setup_logging(task_log_dir, task_name, enable_file_logging)
+    
+    # Get logger instance
+    logger = logging.getLogger()
+
     # Use the passed task_name parameter instead of hardcoded value
-    print(f"Running task: {task_name}")
+    logger.info(f"🚀 Starting inference for task: {task_name}")
+    if enable_file_logging:
+        logger.info(f"📁 Log directory: {task_log_dir}")
+        logger.info(f"📝 Log file: {log_file_path}")
     
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
@@ -420,7 +513,7 @@ def infer(policy, task_name, enable_video_recording=False):
     
     # Get total number of substeps for loop-back detection
     total_substeps = get_num_substeps(task_name)
-    print(f"📊 Task '{task_name}' has {total_substeps} substeps")
+    logger.info(f"📊 Task '{task_name}' has {total_substeps} substeps")
     
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
@@ -428,13 +521,8 @@ def infer(policy, task_name, enable_video_recording=False):
     # Initialize video recording variables (only if enabled)
     video_writer = None
     video_segment_counter = 0
-    task_log_dir = None
     
     if enable_video_recording:
-        # Define log directory for video recordings
-        log_dir = "./video_recordings"
-        task_log_dir = _get_unique_log_dir(log_dir, task_name)
-        
         # Set global variables for cleanup
         task_log_dir_global = task_log_dir
         task_name_global = task_name
@@ -444,9 +532,9 @@ def infer(policy, task_name, enable_video_recording=False):
         VIDEO_FPS = 2 
         video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
         video_writer_global = video_writer
-        print(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
+        logger.info(f"🎥 Recording video to: {os.path.join(task_log_dir, f'{task_name}_inference_segment_{video_segment_counter:03d}.mp4')}")
     else:
-        print("📵 Video recording disabled")
+        logger.info("📵 Video recording disabled")
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -508,20 +596,20 @@ def infer(policy, task_name, enable_video_recording=False):
                         VIDEO_FPS = 2  # Define VIDEO_FPS here if not already defined
                         video_writer = imageio.get_writer(os.path.join(task_log_dir, f"{task_name}_inference_segment_{video_segment_counter:03d}.mp4"), fps=VIDEO_FPS)
                         video_writer_global = video_writer
-                        print(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
+                        logger.info(f"🎥 Saved intermediate video segment {video_segment_counter-1:03d} at count {count}, starting segment {video_segment_counter:03d}")
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
 
                 if act_raw.position is not None and len(act_raw.position) == 0:
-                    print("No joint state received, skipping iteration.")
+                    logger.warning("No joint state received, skipping iteration.")
                     continue
 
                 # Record initial joint angles on first valid iteration
                 if not is_initialized and act_raw.position is not None and len(act_raw.position) > 0:
                     initial_joint_angles = np.array(act_raw.position).copy()
                     is_initialized = True
-                    print(f"📝 Recorded initial joint angles: {initial_joint_angles}")
+                    logger.info(f"📝 Recorded initial joint angles: {initial_joint_angles}")
 
                 model_input = input_processor.process(
                     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
@@ -541,10 +629,10 @@ def infer(policy, task_name, enable_video_recording=False):
                     
                     # Check if we've completed all substeps and looped back to first instruction
                     # This happens when we advance from the last substep (total_substeps - 1) to substep 0
-                    print(f"curr_task_substep_index: {curr_task_substep_index}, total_substeps: {total_substeps}")
+                    logger.debug(f"curr_task_substep_index: {curr_task_substep_index}, total_substeps: {total_substeps}")
                     if (curr_task_substep_index > 0 and curr_task_substep_index % total_substeps == 0 and 
                         is_initialized and initial_joint_angles is not None and not returned_to_initial_this_cycle):
-                        print("🎉 Task sequence completed! Moving back to initial pose...")
+                        logger.info("🎉 Task sequence completed! Moving back to initial pose...")
                         
                         # Move to initial pose using interpolation
                         current_joints = np.array(act_raw.position)
@@ -557,10 +645,10 @@ def infer(policy, task_name, enable_video_recording=False):
                         # Send interpolated joint commands to return to initial pose
                         for step_idx, interp_joints in enumerate(interpolated_steps):
                             sim_ros_node.publish_joint_command(interp_joints)
-                            print(f"🏠 Moving to initial pose - Step {step_idx + 1}/{num_steps}")
+                            logger.debug(f"🏠 Moving to initial pose - Step {step_idx + 1}/{num_steps}")
                             sim_ros_node.loop_rate.sleep()
                         
-                        print("✅ Returned to initial pose! Starting new task cycle...")
+                        logger.info("✅ Returned to initial pose! Starting new task cycle...")
                         returned_to_initial_this_cycle = True
                         
                         # Update act_raw to reflect the new position
@@ -613,7 +701,7 @@ def infer(policy, task_name, enable_video_recording=False):
                 elif task_name == "iros_clear_table_in_the_restaurant":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 else:
-                    print(f"Task {task_name} not recognized, using default execution steps.")
+                    logger.warning(f"Task {task_name} not recognized, using default execution steps.")
 
                 for step_index in execution_steps:
                     num_ik_iterations = 1
@@ -651,7 +739,7 @@ def infer(policy, task_name, enable_video_recording=False):
                             sim_ros_node.publish_joint_command(interp_joints)
                             # print gripper joint angles in degrees for the final target
                             if interp_joints == interpolated_steps[-1]:
-                                print(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7])}, Right gripper joint angle: {np.rad2deg(interp_joints[15])}")
+                                logger.debug(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
 
     # Cleanup: Close the final video segment and merge if multiple segments exist (only if video recording was enabled)
@@ -659,21 +747,23 @@ def infer(policy, task_name, enable_video_recording=False):
         try:
             video_writer.close()
             video_writer_global = None  # Clear global reference
-            print(f"🎥 Final video segment {video_segment_counter:03d} saved successfully")
+            logger.info(f"🎥 Final video segment {video_segment_counter:03d} saved successfully")
             
             # If we have multiple segments, merge them into one final video
             if video_segment_counter > 0:
-                print("🎬 Normal exit detected - merging video segments...")
+                logger.info("🎬 Normal exit detected - merging video segments...")
                 merge_video_segments(task_log_dir, task_name, video_segment_counter)
             else:
-                print("🎥 Single video segment created - no merging needed")
+                logger.info("🎥 Single video segment created - no merging needed")
                 
         except Exception as e:
-            print(f"⚠️ Error closing final video segment: {e}")
+            logger.error(f"⚠️ Error closing final video segment: {e}")
     elif enable_video_recording:
-        print("📵 Video recording was enabled but no video writer was initialized")
+        logger.warning("📵 Video recording was enabled but no video writer was initialized")
     else:
-        print("📵 Video recording was disabled - no cleanup needed")
+        logger.info("📵 Video recording was disabled - no cleanup needed")
+    
+    logger.info("🏁 Inference completed")
 
 
 
@@ -804,10 +894,17 @@ if __name__ == "__main__":
                         help='Name of the task to run')
     parser.add_argument('--enable_video_recording', action='store_true', default=False,
                         help='Enable video recording of inference images. Videos are saved as segments and merged on normal exit. (default: False)')
+    parser.add_argument('--enable_file_logging', action='store_true', default=True,
+                        help='Enable logging to file in addition to console output. (default: True)')
+    parser.add_argument('--disable_file_logging', action='store_true', default=False,
+                        help='Disable file logging - console output only. Overrides --enable_file_logging. (default: False)')
     
     args = parser.parse_args()
+
+    # Handle logging flags (disable takes precedence)
+    enable_file_logging = args.enable_file_logging and not args.disable_file_logging
 
     policy = get_policy()
     # policy = get_policy_wo_state()
     
-    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording)
+    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording, enable_file_logging=enable_file_logging)
