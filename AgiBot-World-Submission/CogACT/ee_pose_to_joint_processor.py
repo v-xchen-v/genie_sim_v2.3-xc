@@ -50,7 +50,8 @@ class EEtoJointProcessor:
         self.last_right_arm_joint_angles = None
         
         # Gripper scaling strategy configuration
-        self.gripper_strategy = "larger_two_side"  # Default to new strategy
+        # self.gripper_strategy = "larger_two_side"  # Default to new strategy
+        self.gripper_strategy = "larger_one_side"  # Default to original strategy
 
         
     
@@ -204,7 +205,7 @@ class EEtoJointProcessor:
         elif gripper_act_value.shape[0] == 8:
             n_frames_forward = 3
         elif gripper_act_value.shape[0] == 4:
-            n_frames_forward = 2
+            n_frames_forward = 1
         else:
             n_frames_forward = 0
 
@@ -220,17 +221,25 @@ class EEtoJointProcessor:
         # convert to joint command
         # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
         # ratio = 1.2/0.7853981633974483  # for testing
-        ratio = 1.2/0.7
         
+        if task_name == "iros_pack_moving_objects_from_conveyor":
+            self.gripper_strategy = "larger_two_side"
+        else:
+            self.gripper_strategy = "larger_one_side"
+
         if self.gripper_strategy == "larger_one_side":
             # Strategy 1: Original - larger on one side (amplify values directly)
+            ratio = 1.2/0.7
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
         elif self.gripper_strategy == "larger_two_side":
             # Strategy 2: New - larger on both sides around center
-            # Transform gripper values: (value - 0.5) * ratio, then map back to larger range
-            gripper_transformed = (gripper_act_value - 0.5) * ratio
+            ratio = 1.2/0.7  # for testing, make the gripper more sensitive
+            gripper_upper = 0.7853981633974483  # 45 degrees in radians
+            center = gripper_upper/2.0  # Center point (0.39269908169872414)
+            # Transform gripper values: (value - 0.39269908169872414) * ratio, then map back to larger range
+            gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
-            gripper_cmd_joint = np.clip(gripper_transformed + 0.5, 0, 1)  # [num_steps, 1]
+            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {self.gripper_strategy}")
         

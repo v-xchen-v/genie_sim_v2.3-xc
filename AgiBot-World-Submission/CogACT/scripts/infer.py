@@ -19,7 +19,7 @@ from vlainputprocessor import VLAInputProcessor
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_pose_to_joint_processor import EEtoJointProcessor
-from pathlib import Path
+from config_loader import get_config
 
 import time
 import argparse
@@ -107,9 +107,11 @@ def redirect_print_to_logging(logger):
     log_capture = LogCapture(logger)
     return log_capture
 
+# Load configuration
+config = get_config()
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
-input_processor = VLAInputProcessor(log_obs=False, resize_mode="1x1")  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
+input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
 
 def get_instruction(task_name):
 
@@ -207,18 +209,18 @@ def get_sim_time(sim_ros_node):
 def get_task_progression_config():
     """Get task-specific configuration for substep progression."""
     return {
-        "progress_thresholds": {
-            "iros_pack_in_the_supermarket": 0.3,
-            "iros_restock_supermarket_items": 0.9,
-            "iros_stamp_the_seal": 0.99,
-            "iros_clear_the_countertop_waste": 0.4,
-            "iros_clear_table_in_the_restaurant": 0.6,
-            "iros_heat_the_food_in_the_microwave": 0.6,
-            "iros_open_drawer_and_store_items": 0.4,
-            "iros_pack_moving_objects_from_conveyor": 0.4,
-            "iros_pickup_items_from_the_freezer": 0.4,
-            "iros_make_a_sandwich": 0.9,
-        },
+        # "progress_thresholds": {
+        #     "iros_pack_in_the_supermarket": 0.3,
+        #     "iros_restock_supermarket_items": 0.9,
+        #     "iros_stamp_the_seal": 0.99,
+        #     "iros_clear_the_countertop_waste": 0.4,
+        #     "iros_clear_table_in_the_restaurant": 0.6,
+        #     "iros_heat_the_food_in_the_microwave": 0.6,
+        #     "iros_open_drawer_and_store_items": 0.97,
+        #     "iros_pack_moving_objects_from_conveyor": 0.4,
+        #     "iros_pickup_items_from_the_freezer": 0.4,
+        #     "iros_make_a_sandwich": 0.9,
+        # },
         "min_inference_counters": {
             "iros_pack_in_the_supermarket": 12,  # 1-8 steps
             "iros_restock_supermarket_items": 5,  # 1-16 steps
@@ -226,18 +228,21 @@ def get_task_progression_config():
             "iros_clear_the_countertop_waste": 6,
             "iros_clear_table_in_the_restaurant": 10,
             "iros_heat_the_food_in_the_microwave": 40,
-            "iros_open_drawer_and_store_items": 32,
-            "iros_pack_moving_objects_from_conveyor": 10, # steps: 4, 8, 12, 16, 6 is enough for pickup directly but not enough for failed and retry
+            "iros_open_drawer_and_store_items": 20,
+            "iros_pack_moving_objects_from_conveyor": 12, # for steps: [0, 4, 8, 12], 6 is enough for pickup directly but not enough for failed and retry, 12 is enough for failed and retry
             "iros_pickup_items_from_the_freezer": 24,
             "iros_make_a_sandwich": 12,
         },
         "max_inference_counters": {
             "iros_pack_in_the_supermarket": 48,  # 1-8 steps
             "iros_heat_the_food_in_the_microwave": 40,  # 1-8 steps
+            # "iros_restock_supermarket_items": 48,  # 1-8 steps
+            # "iros_open_drawer_and_store_items": 40,  # 1-8 steps
+            "iros_open_drawer_and_store_items": 20,  # 1-16 steps
         }
     }
 
-def check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config):
+def check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config, logger):
     """Strategy 3: Check if substep should advance based on progress threshold OR max counter."""
     progress_threshold = 0.95  # High threshold for reliable progress signal
     max_inference_counter = config["max_inference_counters"].get(task_name, 20)
@@ -251,11 +256,12 @@ def check_progress_based_advancement(task_substep_progress, task_name, substep_i
     
     should_advance = counter_exceeded or progress_exceeded
     
-    if should_advance:
-        reason = "counter exceeded" if counter_exceeded else "progress exceeded"
-        print(f"✅ ADVANCING (Strategy 3): {reason} - Progress ({current_progress:.3f}), Counter ({substep_inference_counter})")
-    else:
-        print(f"❌ NOT ADVANCING (Strategy 3): Progress ({current_progress:.3f} <= {progress_threshold}), Counter ({substep_inference_counter} < {max_inference_counter})")
+    if logger is not None:
+        if should_advance:
+            reason = "counter exceeded" if counter_exceeded else "progress exceeded"
+            logger.info(f"✅ ADVANCING (Strategy 3): {reason} - Progress ({current_progress:.3f}), Counter ({substep_inference_counter})")
+        else:
+            logger.info(f"❌ NOT ADVANCING (Strategy 3): Progress ({current_progress:.3f} <= {progress_threshold}), Counter ({substep_inference_counter} < {max_inference_counter})")
     
     return should_advance
 
@@ -313,7 +319,7 @@ def check_restrict_inference_count_advancement(task_substep_progress, task_name,
     
     return should_advance
 
-def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"):
+def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress", logger=None):
     """
     Handle substep progression logic based on task progress and inference counter.
     
@@ -335,31 +341,28 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     substep_inference_counter += 1
     task_substep_progress = _action_task_substep_progress(action)
     
-    # Log current state
-    print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
-    print(f"Substep: {curr_task_substep_index}, Inference Counter: {substep_inference_counter}, Mode: {mode}")
-    print(f"Instruction: {model_input['task_description']}")
-    
+     # Log current state
+    if logger is not None:
+        # Log current state
+        logger.info(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
+        logger.info(f"Substep: {curr_task_substep_index}, Inference Counter: {substep_inference_counter}, Mode: {mode}")
+        logger.info(f"Instruction: {model_input['task_description']}")
+
     # Get task configuration
-    config = get_task_progression_config()
+    task_config = get_task_progression_config()
+    task_config["progress_thresholds"] = config.get_task_progression_config()["progress_thresholds"]
     
     # Determine if we should advance based on the selected strategy
     if mode == "legacy":
-        should_advance = check_legacy_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_legacy_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     elif mode == "restrict_progress":
-        should_advance = check_restrict_progress_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_restrict_progress_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     elif mode == "by_progress":
-        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, task_config, logger)
     elif mode == "restrict_inference_count":
-        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     else:
         raise ValueError(f"Unknown mode: {mode}. Use 'legacy', 'restrict_progress', 'by_progress', or 'restrict_inference_count'")
-    
-    # hard-code seting for pack_moving_objects_from_conveyor, since current the model is not very good at progress prediction, when the model is ready,
-    # remove this hard-code
-    if task_name == "iros_pack_moving_objects_from_conveyor":
-        mode = "restrict_inference_count"
-        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
 
     # Update indices if advancing
     if should_advance:
@@ -418,7 +421,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     bridge = CvBridge()
     count = 0
     SIM_INIT_TIME = 8
-
+        
     # Set up logging directory (shared with image saving if enabled)
     log_dir = "./inference_logs" if not enable_video_recording else "./video_recordings"
     if enable_video_recording:
@@ -431,12 +434,27 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     
     # Get logger instance
     logger = logging.getLogger()
-
-    # Use the passed task_name parameter instead of hardcoded value
-    logger.info(f"🚀 Starting inference for task: {task_name}")
-    if enable_file_logging:
-        logger.info(f"📁 Log directory: {task_log_dir}")
-        logger.info(f"📝 Log file: {log_file_path}")
+    
+    
+    # Copy configuration file to task directory for reproducibility
+    import shutil
+    config_dest_path = os.path.join(task_log_dir, 'inference_config.yaml')
+    try:
+        config.save_config_copy(config_dest_path)
+        logger.info(f"📋 Configuration copied to: {config_dest_path}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to copy configuration file: {e}")
+    
+    # Save configuration summary as JSON
+    config_summary_path = os.path.join(task_log_dir, 'inference_config_summary.json')
+    try:
+        config.save_config_summary(config_summary_path)
+        logger.info(f"📊 Configuration summary saved to: {config_summary_path}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to save configuration summary: {e}")
+    
+    # Update SIM_INIT_TIME from config
+    SIM_INIT_TIME = 8
     
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
@@ -560,8 +578,9 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 
                 if action:                    
                     # Handle substep progression logic
+                    task_advance_strategy = config.get_progression_strategy(task_name)
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode=task_advance_strategy, logger=logger
                     )
                     
                     # Check if we've completed all substeps and looped back to first instruction
@@ -599,46 +618,49 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
 
 
-                # send command from model to sim
-                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # default
-                # execution_steps = [0, 1, 2, 3]
-                # execution_steps = [0]
-                # execution_steps = [0, 1]
-                if task_name == "iros_stamp_the_seal":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_pack_in_the_supermarket":
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_make_a_sandwich":
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_clear_the_countertop_waste":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_heat_the_food_in_the_microwave":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
-                elif task_name == "iros_open_drawer_and_store_items":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    execution_steps = [0, 1, 2, 3]
-                elif task_name == "iros_pack_moving_objects_from_conveyor":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # # send command from model to sim
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # default
+                # if task_name == "iros_stamp_the_seal":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_pack_in_the_supermarket":
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_make_a_sandwich":
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_clear_the_countertop_waste":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_heat_the_food_in_the_microwave":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
+                # elif task_name == "iros_open_drawer_and_store_items":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     execution_steps = [0, 1, 2, 3]
+                # elif task_name == "iros_pack_moving_objects_from_conveyor":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-                    if curr_task_substep_index % total_substeps == 0: # must be fast to pick up object from conveyor, so that use less steps
-                        execution_steps = execution_steps[::4]  # Take every 4th step for execution
-                    else:
-                        execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
+                #     if curr_task_substep_index % total_substeps == 0: # must be fast to pick up object from conveyor, so that use less steps
+                #         execution_steps = execution_steps[::4]  # Take every 4th step for execution
+                #     else:
+                #         execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
 
-                elif task_name == "iros_pickup_items_from_the_freezer":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    # execution_steps = [0, 1, 2, 3]
-                elif task_name == "iros_restock_supermarket_items":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_clear_table_in_the_restaurant":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                else:
-                    logger.warning(f"Task {task_name} not recognized, using default execution steps.")
+                # elif task_name == "iros_pickup_items_from_the_freezer":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3]
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                # elif task_name == "iros_restock_supermarket_items":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7] # bad for 17030
+                #     # execution_steps = [0, 1, 2, 3] # bad for 17030
+                # elif task_name == "iros_clear_table_in_the_restaurant":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # else:
+                #     logger.warning(f"Task {task_name} not recognized, using default execution steps.")
+                execution_steps = config.get_execution_steps(task_name, curr_task_substep_index, total_substeps)
+                logger.info(f"🔄 Executing steps: {execution_steps} for substep {curr_task_substep_index} of task '{task_name}'")
 
                 for step_index in execution_steps:
                     num_ik_iterations = 1
@@ -658,14 +680,18 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             # drop during lifting, more tight grasp is need
                             joint_arr[7] *= 1.5
                             joint_arr[15] *= 1.5
-                        
+                        if task_name == "iros_restock_supermarket_items":
+                            joint_arr[7] *= 1.7
+                            joint_arr[15] *= 1.7
+
                         # Interpolate between current joint positions and target joint positions
                         act_raw = sim_ros_node.get_joint_state()
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
                         if task_name == "iros_clear_countertop_waste" or \
                             (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
-                            or task_name == "iros_make_a_sandwich" :
+                            or task_name == "iros_make_a_sandwich" \
+                            or task_name == "iros_restock_supermarket_items" :
                             # or task_name =="iros_clear_table_in_the_restaurant":
                             num_steps = 1
                         else:
@@ -676,7 +702,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             sim_ros_node.publish_joint_command(interp_joints)
                             # print gripper joint angles in degrees for the final target
                             if interp_joints == interpolated_steps[-1]:
-                                logger.debug(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
+                                logger.info(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
 
 
@@ -740,12 +766,14 @@ def get_policy():
 
     # # Split data by ADC timepoint and object z > threshold for pick
     # PORT=17020 # no aug, step 20k
-    PORT=17030 # no aug, step 30k
+    # PORT=17030 # no aug, step 30k
     # PORT=17040 # no aug, step 40k
     # PORT=18020 # aug, step~20k
 
+    # # new Sim data
+    PORT=config.policy_port # no aug, step~20k
 
-    ip = "10.190.172.212"
+    ip = config.policy_ip
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
 
@@ -806,13 +834,17 @@ if __name__ == "__main__":
                             "iros_pickup_items_from_the_freezer"
                         ],
                         help='Name of the task to run')
-    parser.add_argument('--enable_video_recording', action='store_true', default=True,
-                        help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
+    # parser.add_argument('--enable_video_recording', action='store_true', default=True,
+    #                     help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
     parser.add_argument('--enable_file_logging', action='store_true', default=True,
                         help='Enable logging to file in addition to console output. (default: True), otherwise, console output only.')
     args = parser.parse_args()
 
     policy = get_policy()
     # policy = get_policy_wo_state()
-    
-    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording, enable_file_logging=args.enable_file_logging)
+
+    enable_video_recording = config.enable_video_recording
+    if args.task_name == "iros_pack_moving_objects_from_conveyor":
+        enable_video_recording = False # always disable video recording for this task, disable video recording since it's sensitive to timing and video recording may cause lag
+
+    infer(policy, args.task_name, enable_video_recording=enable_video_recording, enable_file_logging=args.enable_file_logging)
