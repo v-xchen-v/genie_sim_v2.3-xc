@@ -19,7 +19,7 @@ from vlainputprocessor import VLAInputProcessor
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_pose_to_joint_processor import EEtoJointProcessor
-from pathlib import Path
+from config_loader import get_config
 
 import time
 import argparse
@@ -107,9 +107,11 @@ def redirect_print_to_logging(logger):
     log_capture = LogCapture(logger)
     return log_capture
 
+# Load configuration
+config = get_config()
 # Initialize ee_to_joint_processor at module level
 ee_to_joint_processor = EEtoJointProcessor()
-input_processor = VLAInputProcessor(log_obs=False, resize_mode="1x1")  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
+input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
 
 def get_instruction(task_name):
 
@@ -435,12 +437,27 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     
     # Get logger instance
     logger = logging.getLogger()
-
-    # Use the passed task_name parameter instead of hardcoded value
-    logger.info(f"🚀 Starting inference for task: {task_name}")
-    if enable_file_logging:
-        logger.info(f"📁 Log directory: {task_log_dir}")
-        logger.info(f"📝 Log file: {log_file_path}")
+    
+    
+    # Copy configuration file to task directory for reproducibility
+    import shutil
+    config_dest_path = os.path.join(task_log_dir, 'inference_config.yaml')
+    try:
+        config.save_config_copy(config_dest_path)
+        logger.info(f"📋 Configuration copied to: {config_dest_path}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to copy configuration file: {e}")
+    
+    # Save configuration summary as JSON
+    config_summary_path = os.path.join(task_log_dir, 'inference_config_summary.json')
+    try:
+        config.save_config_summary(config_summary_path)
+        logger.info(f"📊 Configuration summary saved to: {config_summary_path}")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to save configuration summary: {e}")
+    
+    # Update SIM_INIT_TIME from config
+    SIM_INIT_TIME = 8
     
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
@@ -603,48 +620,49 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # print(f"Joint command shape: {joint_cmd.shape}, Joint command: {joint_cmd}")
 
 
-                # send command from model to sim
-                execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # default
-                # execution_steps = [0, 1, 2, 3]
-                # execution_steps = [0]
-                # execution_steps = [0, 1]
-                if task_name == "iros_stamp_the_seal":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_pack_in_the_supermarket":
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_make_a_sandwich":
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_clear_the_countertop_waste":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                elif task_name == "iros_heat_the_food_in_the_microwave":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    # execution_steps = [0, 1, 2, 3]
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
-                elif task_name == "iros_open_drawer_and_store_items":
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    execution_steps = [0, 1, 2, 3]
-                elif task_name == "iros_pack_moving_objects_from_conveyor":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # # send command from model to sim
+                # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # default
+                # if task_name == "iros_stamp_the_seal":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_pack_in_the_supermarket":
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_make_a_sandwich":
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_clear_the_countertop_waste":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # elif task_name == "iros_heat_the_food_in_the_microwave":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
+                # elif task_name == "iros_open_drawer_and_store_items":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     execution_steps = [0, 1, 2, 3]
+                # elif task_name == "iros_pack_moving_objects_from_conveyor":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-                    if curr_task_substep_index % total_substeps == 0: # must be fast to pick up object from conveyor, so that use less steps
-                        execution_steps = execution_steps[::4]  # Take every 4th step for execution
-                    else:
-                        execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
+                #     if curr_task_substep_index % total_substeps == 0: # must be fast to pick up object from conveyor, so that use less steps
+                #         execution_steps = execution_steps[::4]  # Take every 4th step for execution
+                #     else:
+                #         execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
 
-                elif task_name == "iros_pickup_items_from_the_freezer":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    # execution_steps = [0, 1, 2, 3]
-                elif task_name == "iros_restock_supermarket_items":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7] # bad for 17030
-                    # execution_steps = [0, 1, 2, 3] # bad for 17030
-                elif task_name == "iros_clear_table_in_the_restaurant":
-                    execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-                else:
-                    logger.warning(f"Task {task_name} not recognized, using default execution steps.")
+                # elif task_name == "iros_pickup_items_from_the_freezer":
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3]
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                # elif task_name == "iros_restock_supermarket_items":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7] # bad for 17030
+                #     # execution_steps = [0, 1, 2, 3] # bad for 17030
+                # elif task_name == "iros_clear_table_in_the_restaurant":
+                #     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                # else:
+                #     logger.warning(f"Task {task_name} not recognized, using default execution steps.")
+                execution_steps = config.get_execution_steps(task_name, curr_task_substep_index, total_substeps)
+                logger.info(f"🔄 Executing steps: {execution_steps} for substep {curr_task_substep_index} of task '{task_name}'")
 
                 for step_index in execution_steps:
                     num_ik_iterations = 1
@@ -751,11 +769,13 @@ def get_policy():
     # # Split data by ADC timepoint and object z > threshold for pick
     # PORT=17020 # no aug, step 20k
     # PORT=17030 # no aug, step 30k
-    PORT=17040 # no aug, step 40k
+    # PORT=17040 # no aug, step 40k
     # PORT=18020 # aug, step~20k
 
+    # # new Sim data
+    PORT=config.policy_port # no aug, step~20k
 
-    ip = "10.190.172.212"
+    ip = config.policy_ip
     policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
     return policy  # Placeholder for actual policy loading logic
 

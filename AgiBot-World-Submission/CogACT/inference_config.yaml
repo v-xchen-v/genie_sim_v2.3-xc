@@ -1,0 +1,173 @@
+# Inference Configuration for Robot Task Execution
+# This YAML file contains all configurable parameters for the robot inference system.
+
+# =========================================================================
+# IMAGE PROCESSING CONFIGURATION
+# =========================================================================
+image_processing:
+  # Input processing settings
+  resize_mode: "1x1"  # Options: "1x1", "4x3_pad_resize"
+  # Note: Use "1x1" for augmented models, "4x3_pad_resize" for others
+  
+#   log_observations: false  # Whether to log observations during processing
+  
+#   # Image saving settings
+#   target_image_height: 224  # Height for resized images
+#   save_individual_camera_images: false  # Save head, left_wrist, right_wrist separately
+#   save_combined_image: true  # Save combined image
+#   image_save_format: "jpg"  # Image format: jpg, png
+
+# =========================================================================
+# TASK EXECUTION CONFIGURATION
+# =========================================================================
+task_execution:
+  # Default execution steps (16-step trajectory)
+  default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  
+  # Task-specific execution steps
+  task_execution_steps:
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
+    iros_open_drawer_and_store_items: [0, 1, 2, 3]  # Use first 4 steps
+    iros_pack_moving_objects_from_conveyor:
+      pickup_substep: [0, 4, 8, 12]  # Every 4th step for fast pickup
+      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  
+#   # Gripper force multipliers for specific tasks
+#   gripper_force_multipliers:
+#     iros_pack_moving_objects_from_conveyor:
+#       left: 1.5
+#       right: 1.5
+#     iros_restock_supermarket_items:
+#       left: 1.7
+#       right: 1.7
+#     iros_make_a_sandwich:
+#       left: 1.5
+#       right: 1.5
+  
+#   # Number of interpolation steps for different tasks
+#   interpolation_steps:
+#     iros_clear_countertop_waste: 1
+#     iros_pack_moving_objects_from_conveyor: 1  # For pickup substep
+#     iros_make_a_sandwich: 1
+#     iros_restock_supermarket_items: 1
+#     default: 2
+
+# # =========================================================================
+# # TASK PROGRESSION CONFIGURATION
+# # =========================================================================
+# task_progression:
+#   # Progress thresholds for substep advancement
+#   progress_thresholds:
+#     iros_pack_in_the_supermarket: 0.3
+#     iros_restock_supermarket_items: 0.9
+#     iros_stamp_the_seal: 0.99
+#     iros_clear_the_countertop_waste: 0.4
+#     iros_clear_table_in_the_restaurant: 0.6
+#     iros_heat_the_food_in_the_microwave: 0.6
+#     iros_open_drawer_and_store_items: 0.4
+#     iros_pack_moving_objects_from_conveyor: 0.4
+#     iros_pickup_items_from_the_freezer: 0.4
+#     iros_make_a_sandwich: 0.9
+  
+#   # Minimum inference counters before advancing
+#   min_inference_counters:
+#     iros_pack_in_the_supermarket: 12
+#     iros_restock_supermarket_items: 5
+#     iros_stamp_the_seal: 10
+#     iros_clear_the_countertop_waste: 6
+#     iros_clear_table_in_the_restaurant: 10
+#     iros_heat_the_food_in_the_microwave: 40
+#     iros_open_drawer_and_store_items: 32
+#     iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
+#     iros_pickup_items_from_the_freezer: 24
+#     iros_make_a_sandwich: 12
+  
+#   # Maximum inference counters (for timeout)
+#   max_inference_counters:
+#     iros_pack_in_the_supermarket: 48
+#     iros_heat_the_food_in_the_microwave: 40
+#     iros_pickup_items_from_the_freezer: 40  # 20*2 for 8 steps
+  
+#   # Default progression strategy for each task
+#   task_progression_strategies:
+#     iros_pack_moving_objects_from_conveyor: "restrict_inference_count"
+#     default: "by_progress"
+
+# # =========================================================================
+# # HEAD JOINT CONFIGURATIONS
+# # =========================================================================
+# head_joint_configurations:
+#   iros_clear_the_countertop_waste:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.4593
+#   iros_restock_supermarket_items:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.3839745594177246
+#   iros_clear_table_in_the_restaurant:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.43633231
+#   iros_stamp_the_seal:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.384
+#   iros_pack_in_the_supermarket:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.43633231
+#   iros_heat_the_food_in_the_microwave:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.43633231
+#   iros_open_drawer_and_store_items:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.2617993878
+#   iros_pack_moving_objects_from_conveyor:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.4362
+#   iros_pickup_items_from_the_freezer:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.4362
+#   iros_make_a_sandwich:
+#     idx11_head_joint1: 0.0
+#     idx12_head_joint2: 0.43634
+
+# =========================================================================
+# POLICY CONFIGURATION
+# =========================================================================
+policy:
+  # API settings
+  ip: "10.190.172.212"
+  port: 19020  # Current: no aug, step~20k
+  
+  # Alternative ports (for reference):
+  # 17030: no aug, step 30k
+  # 17040: no aug, step 40k
+  # 18020: aug, step~20k
+
+# # =========================================================================
+# # SIMULATION CONFIGURATION
+# # =========================================================================
+# simulation:
+#   init_time: 8  # Seconds to wait for simulation initialization
+  
+#   # Return to initial pose settings
+#   return_to_initial_steps: 10  # Interpolation steps for returning to initial pose
+
+# # =========================================================================
+# # LOGGING AND RECORDING CONFIGURATION
+# # =========================================================================
+# logging:
+#   # Directory settings
+#   default_log_dir: "./inference_logs"
+#   default_video_recording_dir: "./video_recordings"
+  
+#   # Log format
+#   log_format: '%(asctime)s | %(levelname)s | %(message)s'
+#   log_date_format: '%Y-%m-%d %H:%M:%S'
+  
+#   # Progress logging frequency
+#   image_save_log_frequency: 10  # Log progress every N images
