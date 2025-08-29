@@ -209,18 +209,18 @@ def get_sim_time(sim_ros_node):
 def get_task_progression_config():
     """Get task-specific configuration for substep progression."""
     return {
-        "progress_thresholds": {
-            "iros_pack_in_the_supermarket": 0.3,
-            "iros_restock_supermarket_items": 0.9,
-            "iros_stamp_the_seal": 0.99,
-            "iros_clear_the_countertop_waste": 0.4,
-            "iros_clear_table_in_the_restaurant": 0.6,
-            "iros_heat_the_food_in_the_microwave": 0.6,
-            "iros_open_drawer_and_store_items": 0.4,
-            "iros_pack_moving_objects_from_conveyor": 0.4,
-            "iros_pickup_items_from_the_freezer": 0.4,
-            "iros_make_a_sandwich": 0.9,
-        },
+        # "progress_thresholds": {
+        #     "iros_pack_in_the_supermarket": 0.3,
+        #     "iros_restock_supermarket_items": 0.9,
+        #     "iros_stamp_the_seal": 0.99,
+        #     "iros_clear_the_countertop_waste": 0.4,
+        #     "iros_clear_table_in_the_restaurant": 0.6,
+        #     "iros_heat_the_food_in_the_microwave": 0.6,
+        #     "iros_open_drawer_and_store_items": 0.97,
+        #     "iros_pack_moving_objects_from_conveyor": 0.4,
+        #     "iros_pickup_items_from_the_freezer": 0.4,
+        #     "iros_make_a_sandwich": 0.9,
+        # },
         "min_inference_counters": {
             "iros_pack_in_the_supermarket": 12,  # 1-8 steps
             "iros_restock_supermarket_items": 5,  # 1-16 steps
@@ -228,7 +228,7 @@ def get_task_progression_config():
             "iros_clear_the_countertop_waste": 6,
             "iros_clear_table_in_the_restaurant": 10,
             "iros_heat_the_food_in_the_microwave": 40,
-            "iros_open_drawer_and_store_items": 32,
+            "iros_open_drawer_and_store_items": 20,
             "iros_pack_moving_objects_from_conveyor": 12, # for steps: [0, 4, 8, 12], 6 is enough for pickup directly but not enough for failed and retry, 12 is enough for failed and retry
             "iros_pickup_items_from_the_freezer": 24,
             "iros_make_a_sandwich": 12,
@@ -237,6 +237,8 @@ def get_task_progression_config():
             "iros_pack_in_the_supermarket": 48,  # 1-8 steps
             "iros_heat_the_food_in_the_microwave": 40,  # 1-8 steps
             # "iros_restock_supermarket_items": 48,  # 1-8 steps
+            # "iros_open_drawer_and_store_items": 40,  # 1-8 steps
+            "iros_open_drawer_and_store_items": 20,  # 1-16 steps
         }
     }
 
@@ -339,12 +341,6 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     substep_inference_counter += 1
     task_substep_progress = _action_task_substep_progress(action)
     
-        
-    # hard-code seting for pack_moving_objects_from_conveyor, since current the model is not very good at progress prediction, when the model is ready,
-    # remove this hard-code
-    if task_name == "iros_pack_moving_objects_from_conveyor":
-        mode = "restrict_inference_count"
-    
      # Log current state
     if logger is not None:
         # Log current state
@@ -353,17 +349,18 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
         logger.info(f"Instruction: {model_input['task_description']}")
 
     # Get task configuration
-    config = get_task_progression_config()
+    task_config = get_task_progression_config()
+    task_config["progress_thresholds"] = config.get_task_progression_config()["progress_thresholds"]
     
     # Determine if we should advance based on the selected strategy
     if mode == "legacy":
-        should_advance = check_legacy_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_legacy_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     elif mode == "restrict_progress":
-        should_advance = check_restrict_progress_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_restrict_progress_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     elif mode == "by_progress":
-        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config, logger)
+        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, task_config, logger)
     elif mode == "restrict_inference_count":
-        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, task_config)
     else:
         raise ValueError(f"Unknown mode: {mode}. Use 'legacy', 'restrict_progress', 'by_progress', or 'restrict_inference_count'")
 
@@ -424,7 +421,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     bridge = CvBridge()
     count = 0
     SIM_INIT_TIME = 8
-
+        
     # Set up logging directory (shared with image saving if enabled)
     log_dir = "./inference_logs" if not enable_video_recording else "./video_recordings"
     if enable_video_recording:
@@ -581,8 +578,9 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 
                 if action:                    
                     # Handle substep progression logic
+                    task_advance_strategy = config.get_progression_strategy(task_name)
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress", logger=logger
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode=task_advance_strategy, logger=logger
                     )
                     
                     # Check if we've completed all substeps and looped back to first instruction
@@ -836,13 +834,17 @@ if __name__ == "__main__":
                             "iros_pickup_items_from_the_freezer"
                         ],
                         help='Name of the task to run')
-    parser.add_argument('--enable_video_recording', action='store_true', default=True,
-                        help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
+    # parser.add_argument('--enable_video_recording', action='store_true', default=True,
+    #                     help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
     parser.add_argument('--enable_file_logging', action='store_true', default=True,
                         help='Enable logging to file in addition to console output. (default: True), otherwise, console output only.')
     args = parser.parse_args()
 
     policy = get_policy()
     # policy = get_policy_wo_state()
-    
-    infer(policy, args.task_name, enable_video_recording=args.enable_video_recording, enable_file_logging=args.enable_file_logging)
+
+    enable_video_recording = config.enable_video_recording
+    if args.task_name == "iros_pack_moving_objects_from_conveyor":
+        enable_video_recording = False # always disable video recording for this task, disable video recording since it's sensitive to timing and video recording may cause lag
+
+    infer(policy, args.task_name, enable_video_recording=enable_video_recording, enable_file_logging=args.enable_file_logging)

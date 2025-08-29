@@ -125,18 +125,18 @@ class InferenceConfig:
         
     #     return interpolation_config.get(task_name, interpolation_config["default"])
     
-    # # =========================================================================
-    # # TASK PROGRESSION CONFIGURATION
-    # # =========================================================================
+    # =========================================================================
+    # TASK PROGRESSION CONFIGURATION
+    # =========================================================================
     
-    # def get_task_progression_config(self) -> Dict[str, Dict[str, Union[float, int]]]:
-    #     """Get task-specific configuration for substep progression."""
-    #     return self.config['task_progression']
+    def get_task_progression_config(self) -> Dict[str, Dict[str, Union[float, int]]]:
+        """Get task-specific configuration for substep progression."""
+        return self.config['task_progression']
     
-    # def get_progression_strategy(self, task_name: str) -> str:
-    #     """Get progression strategy for a task."""
-    #     strategies = self.config['task_progression']['task_progression_strategies']
-    #     return strategies.get(task_name, strategies["default"])
+    def get_progression_strategy(self, task_name: str) -> str:
+        """Get progression strategy for a task."""
+        strategies = self.config['task_progression']['task_progression_strategies']
+        return strategies.get(task_name, strategies["default"])
     
     # # =========================================================================
     # # HEAD JOINT CONFIGURATIONS
@@ -178,10 +178,14 @@ class InferenceConfig:
     #     """Get number of steps for returning to initial pose."""
     #     return self.config['simulation']['return_to_initial_steps']
     
-    # # =========================================================================
-    # # LOGGING CONFIGURATION
-    # # =========================================================================
-    
+    # =========================================================================
+    # LOGGING CONFIGURATION
+    # =========================================================================
+    @property
+    def enable_video_recording(self) -> bool:
+        """Get whether to enable video recording."""
+        return self.config['logging'].get('enable_video_recording', False)
+
     # @property
     # def default_log_dir(self) -> str:
     #     """Get default log directory."""

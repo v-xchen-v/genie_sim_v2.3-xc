@@ -31,7 +31,7 @@ task_execution:
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
-    iros_open_drawer_and_store_items: [0, 1, 2, 3]  # Use first 4 steps
+    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
       pickup_substep: [0, 4, 8, 12]  # Every 4th step for fast pickup
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
@@ -59,22 +59,22 @@ task_execution:
 #     iros_restock_supermarket_items: 1
 #     default: 2
 
-# # =========================================================================
-# # TASK PROGRESSION CONFIGURATION
-# # =========================================================================
-# task_progression:
-#   # Progress thresholds for substep advancement
-#   progress_thresholds:
-#     iros_pack_in_the_supermarket: 0.3
-#     iros_restock_supermarket_items: 0.9
-#     iros_stamp_the_seal: 0.99
-#     iros_clear_the_countertop_waste: 0.4
-#     iros_clear_table_in_the_restaurant: 0.6
-#     iros_heat_the_food_in_the_microwave: 0.6
-#     iros_open_drawer_and_store_items: 0.4
-#     iros_pack_moving_objects_from_conveyor: 0.4
-#     iros_pickup_items_from_the_freezer: 0.4
-#     iros_make_a_sandwich: 0.9
+# =========================================================================
+# TASK PROGRESSION CONFIGURATION
+# =========================================================================
+task_progression:
+  # Progress thresholds for substep advancement
+  progress_thresholds:
+    iros_pack_in_the_supermarket: 0.3
+    iros_restock_supermarket_items: 0.9
+    iros_stamp_the_seal: 0.99
+    iros_clear_the_countertop_waste: 0.4
+    iros_clear_table_in_the_restaurant: 0.6
+    iros_heat_the_food_in_the_microwave: 0.6
+    iros_open_drawer_and_store_items: 0.97
+    iros_pack_moving_objects_from_conveyor: 0.4
+    iros_pickup_items_from_the_freezer: 0.4
+    iros_make_a_sandwich: 0.9
   
 #   # Minimum inference counters before advancing
 #   min_inference_counters:
@@ -95,10 +95,11 @@ task_execution:
 #     iros_heat_the_food_in_the_microwave: 40
 #     iros_pickup_items_from_the_freezer: 40  # 20*2 for 8 steps
   
-#   # Default progression strategy for each task
-#   task_progression_strategies:
-#     iros_pack_moving_objects_from_conveyor: "restrict_inference_count"
-#     default: "by_progress"
+  # Default progression strategy for each task
+  task_progression_strategies:
+    iros_pack_moving_objects_from_conveyor: "restrict_inference_count"
+    iros_open_drawer_and_store_items: "restrict_inference_count"
+    default: "by_progress"
 
 # # =========================================================================
 # # HEAD JOINT CONFIGURATIONS
@@ -157,10 +158,12 @@ policy:
 #   # Return to initial pose settings
 #   return_to_initial_steps: 10  # Interpolation steps for returning to initial pose
 
-# # =========================================================================
-# # LOGGING AND RECORDING CONFIGURATION
-# # =========================================================================
-# logging:
+# =========================================================================
+# LOGGING AND RECORDING CONFIGURATION
+# =========================================================================
+logging:
+    enable_video_recording: true  # Enable video recording during inference
+
 #   # Directory settings
 #   default_log_dir: "./inference_logs"
 #   default_video_recording_dir: "./video_recordings"
