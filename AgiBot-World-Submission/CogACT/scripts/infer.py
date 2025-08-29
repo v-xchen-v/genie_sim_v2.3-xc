@@ -227,17 +227,18 @@ def get_task_progression_config():
             "iros_clear_table_in_the_restaurant": 10,
             "iros_heat_the_food_in_the_microwave": 40,
             "iros_open_drawer_and_store_items": 32,
-            "iros_pack_moving_objects_from_conveyor": 10, # steps: 4, 8, 12, 16, 6 is enough for pickup directly but not enough for failed and retry
+            "iros_pack_moving_objects_from_conveyor": 12, # for steps: [0, 4, 8, 12], 6 is enough for pickup directly but not enough for failed and retry, 12 is enough for failed and retry
             "iros_pickup_items_from_the_freezer": 24,
             "iros_make_a_sandwich": 12,
         },
         "max_inference_counters": {
             "iros_pack_in_the_supermarket": 48,  # 1-8 steps
             "iros_heat_the_food_in_the_microwave": 40,  # 1-8 steps
+            # "iros_restock_supermarket_items": 48,  # 1-8 steps
         }
     }
 
-def check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config):
+def check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config, logger):
     """Strategy 3: Check if substep should advance based on progress threshold OR max counter."""
     progress_threshold = 0.95  # High threshold for reliable progress signal
     max_inference_counter = config["max_inference_counters"].get(task_name, 20)
@@ -251,11 +252,12 @@ def check_progress_based_advancement(task_substep_progress, task_name, substep_i
     
     should_advance = counter_exceeded or progress_exceeded
     
-    if should_advance:
-        reason = "counter exceeded" if counter_exceeded else "progress exceeded"
-        print(f"✅ ADVANCING (Strategy 3): {reason} - Progress ({current_progress:.3f}), Counter ({substep_inference_counter})")
-    else:
-        print(f"❌ NOT ADVANCING (Strategy 3): Progress ({current_progress:.3f} <= {progress_threshold}), Counter ({substep_inference_counter} < {max_inference_counter})")
+    if logger is not None:
+        if should_advance:
+            reason = "counter exceeded" if counter_exceeded else "progress exceeded"
+            logger.info(f"✅ ADVANCING (Strategy 3): {reason} - Progress ({current_progress:.3f}), Counter ({substep_inference_counter})")
+        else:
+            logger.info(f"❌ NOT ADVANCING (Strategy 3): Progress ({current_progress:.3f} <= {progress_threshold}), Counter ({substep_inference_counter} < {max_inference_counter})")
     
     return should_advance
 
@@ -313,7 +315,7 @@ def check_restrict_inference_count_advancement(task_substep_progress, task_name,
     
     return should_advance
 
-def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"):
+def handle_substep_progression(action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress", logger=None):
     """
     Handle substep progression logic based on task progress and inference counter.
     
@@ -335,11 +337,19 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     substep_inference_counter += 1
     task_substep_progress = _action_task_substep_progress(action)
     
-    # Log current state
-    print(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
-    print(f"Substep: {curr_task_substep_index}, Inference Counter: {substep_inference_counter}, Mode: {mode}")
-    print(f"Instruction: {model_input['task_description']}")
+        
+    # hard-code seting for pack_moving_objects_from_conveyor, since current the model is not very good at progress prediction, when the model is ready,
+    # remove this hard-code
+    if task_name == "iros_pack_moving_objects_from_conveyor":
+        mode = "restrict_inference_count"
     
+     # Log current state
+    if logger is not None:
+        # Log current state
+        logger.info(f"------------Task substep progress: {task_substep_progress[0][0]}------------")
+        logger.info(f"Substep: {curr_task_substep_index}, Inference Counter: {substep_inference_counter}, Mode: {mode}")
+        logger.info(f"Instruction: {model_input['task_description']}")
+
     # Get task configuration
     config = get_task_progression_config()
     
@@ -349,17 +359,11 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     elif mode == "restrict_progress":
         should_advance = check_restrict_progress_advancement(task_substep_progress, task_name, substep_inference_counter, config)
     elif mode == "by_progress":
-        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config)
+        should_advance = check_progress_based_advancement(task_substep_progress, task_name, substep_inference_counter, config, logger)
     elif mode == "restrict_inference_count":
         should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
     else:
         raise ValueError(f"Unknown mode: {mode}. Use 'legacy', 'restrict_progress', 'by_progress', or 'restrict_inference_count'")
-    
-    # hard-code seting for pack_moving_objects_from_conveyor, since current the model is not very good at progress prediction, when the model is ready,
-    # remove this hard-code
-    if task_name == "iros_pack_moving_objects_from_conveyor":
-        mode = "restrict_inference_count"
-        should_advance = check_restrict_inference_count_advancement(task_substep_progress, task_name, substep_inference_counter, config)
 
     # Update indices if advancing
     if should_advance:
@@ -561,7 +565,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 if action:                    
                     # Handle substep progression logic
                     curr_task_substep_index, substep_inference_counter = handle_substep_progression(
-                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress"
+                        action, task_name, curr_task_substep_index, substep_inference_counter, model_input, mode="by_progress", logger=logger
                     )
                     
                     # Check if we've completed all substeps and looped back to first instruction
@@ -635,6 +639,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     # execution_steps = [0, 1, 2, 3]
                 elif task_name == "iros_restock_supermarket_items":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+                    # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7] # bad for 17030
+                    # execution_steps = [0, 1, 2, 3] # bad for 17030
                 elif task_name == "iros_clear_table_in_the_restaurant":
                     execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 else:
@@ -658,14 +664,18 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             # drop during lifting, more tight grasp is need
                             joint_arr[7] *= 1.5
                             joint_arr[15] *= 1.5
-                        
+                        if task_name == "iros_restock_supermarket_items":
+                            joint_arr[7] *= 1.7
+                            joint_arr[15] *= 1.7
+
                         # Interpolate between current joint positions and target joint positions
                         act_raw = sim_ros_node.get_joint_state()
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
                         if task_name == "iros_clear_countertop_waste" or \
                             (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
-                            or task_name == "iros_make_a_sandwich" :
+                            or task_name == "iros_make_a_sandwich" \
+                            or task_name == "iros_restock_supermarket_items" :
                             # or task_name =="iros_clear_table_in_the_restaurant":
                             num_steps = 1
                         else:
@@ -676,7 +686,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             sim_ros_node.publish_joint_command(interp_joints)
                             # print gripper joint angles in degrees for the final target
                             if interp_joints == interpolated_steps[-1]:
-                                logger.debug(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
+                                logger.info(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
 
 
@@ -740,8 +750,8 @@ def get_policy():
 
     # # Split data by ADC timepoint and object z > threshold for pick
     # PORT=17020 # no aug, step 20k
-    PORT=17030 # no aug, step 30k
-    # PORT=17040 # no aug, step 40k
+    # PORT=17030 # no aug, step 30k
+    PORT=17040 # no aug, step 40k
     # PORT=18020 # aug, step~20k
 
 
