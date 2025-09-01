@@ -20,6 +20,7 @@ from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_pose_to_joint_processor import EEtoJointProcessor
 from config_loader import get_config
+from video_utils import save_inference_images, save_joint_step_images, VideoRecordingManager
 
 import time
 import argparse
@@ -27,109 +28,6 @@ import signal
 import atexit
 import logging
 from datetime import datetime
-
-# Image saving utility functions
-def resize_images_to_target_height(img_h, img_l, img_r, target_height=224):
-    """
-    Resize images to the same target height while maintaining aspect ratio.
-    
-    Args:
-        img_h: Head image (numpy array)
-        img_l: Left wrist image (numpy array)
-        img_r: Right wrist image (numpy array)
-        target_height: Target height for all images (default: 224)
-    
-    Returns:
-        tuple: (resized_head, resized_left, resized_right) images
-    """
-    img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
-    img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
-    img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
-    return img_h_render, img_l_render, img_r_render
-
-def save_inference_images(img_h, img_l, img_r, task_log_dir, timestamp, logger=None, save_individual=False):
-    """
-    Save images from inference step.
-    
-    Args:
-        img_h: Head image (numpy array)
-        img_l: Left wrist image (numpy array) 
-        img_r: Right wrist image (numpy array)
-        task_log_dir: Directory to save images
-        timestamp: Timestamp string for filename
-        logger: Logger instance for error reporting (optional)
-        save_individual: Whether to save individual camera images (default: False)
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Create images directory if it doesn't exist
-        images_dir = os.path.join(task_log_dir)
-        os.makedirs(images_dir, exist_ok=True)
-        
-        # Resize images to target height
-        img_h_render, img_l_render, img_r_render = resize_images_to_target_height(img_h, img_l, img_r)
-
-        # Save individual camera images if requested
-        if save_individual:
-            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
-            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
-            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
-        
-        # Save combined image
-        combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-        cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
-        
-        return True
-        
-    except Exception as e:
-        if logger:
-            logger.warning(f"Error saving images: {e}")
-        else:
-            print(f"Error saving images: {e}")
-        return False
-
-def save_joint_step_images(sim_ros_node, bridge, task_log_dir, count, step_index, logger=None, save_individual=False):
-    """
-    Save images from joint step execution.
-    
-    Args:
-        sim_ros_node: ROS node for getting images
-        bridge: CV bridge for image conversion
-        task_log_dir: Directory to save images
-        count: Current inference count
-        step_index: Current step index
-        logger: Logger instance for error reporting (optional)
-        save_individual: Whether to save individual camera images (default: False)
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        # Get current images from ROS node
-        img_h_step = bridge.compressed_imgmsg_to_cv2(
-            sim_ros_node.get_img_head(), desired_encoding="rgb8"
-        )
-        img_l_step = bridge.compressed_imgmsg_to_cv2(
-            sim_ros_node.get_img_left_wrist(), desired_encoding="rgb8"
-        )
-        img_r_step = bridge.compressed_imgmsg_to_cv2(
-            sim_ros_node.get_img_right_wrist(), desired_encoding="rgb8"
-        )
-        
-        # Create step timestamp
-        step_timestamp = f"{count:06d}_{step_index:06d}"
-        
-        # Save images using the common function
-        return save_inference_images(img_h_step, img_l_step, img_r_step, task_log_dir, step_timestamp, logger, save_individual)
-        
-    except Exception as e:
-        if logger:
-            logger.warning(f"Error saving step images: {e}")
-        else:
-            print(f"Error saving step images: {e}")
-        return False
 
 # Global variables for cleanup
 video_writer_global = None
@@ -577,20 +475,16 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
 
-    # Initialize image saving variables (only if enabled)
+    # Initialize video recording manager
+    video_manager = VideoRecordingManager(task_log_dir, task_name, logger)
     if enable_video_recording:  # Note: despite the name, this now saves individual images
         # Set global variables for cleanup
         task_log_dir_global = task_log_dir
         task_name_global = task_name
         
-        # Create images directory
-        images_dir = task_log_dir
-        os.makedirs(images_dir, exist_ok=True)
-        
-        logger.info(f"📷 Image saving enabled - images will be saved to: {images_dir}")
-        logger.info(f"📁 Image naming format: XXXXXX_[head|left_wrist|right_wrist|combined].jpg")
+        video_manager.enable_recording()
     else:
-        logger.info("📵 Image saving disabled")
+        video_manager.disable_recording()
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -632,7 +526,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # Save individual images if video recording is enabled
                 if enable_video_recording:
                     timestamp = f"{count:06d}"
-                    save_inference_images(img_h, img_l, img_r, task_log_dir, timestamp, logger, save_individual=False)
+                    video_manager.save_inference_step_images(img_h, img_l, img_r, timestamp, save_individual=False)
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -769,7 +663,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                         act_raw = sim_ros_node.get_joint_state()
                         if enable_video_recording and config.save_per_joint_step_images and i == 0:
                             # Save images for each joint step if enabled
-                            save_joint_step_images(sim_ros_node, bridge, task_log_dir, count, step_index, logger, save_individual=False)
+                            video_manager.save_joint_step_images(sim_ros_node, bridge, count, step_index, save_individual=False)
 
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
