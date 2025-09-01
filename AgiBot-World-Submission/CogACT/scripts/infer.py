@@ -28,6 +28,109 @@ import atexit
 import logging
 from datetime import datetime
 
+# Image saving utility functions
+def resize_images_to_target_height(img_h, img_l, img_r, target_height=224):
+    """
+    Resize images to the same target height while maintaining aspect ratio.
+    
+    Args:
+        img_h: Head image (numpy array)
+        img_l: Left wrist image (numpy array)
+        img_r: Right wrist image (numpy array)
+        target_height: Target height for all images (default: 224)
+    
+    Returns:
+        tuple: (resized_head, resized_left, resized_right) images
+    """
+    img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
+    img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
+    img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
+    return img_h_render, img_l_render, img_r_render
+
+def save_inference_images(img_h, img_l, img_r, task_log_dir, timestamp, logger=None, save_individual=False):
+    """
+    Save images from inference step.
+    
+    Args:
+        img_h: Head image (numpy array)
+        img_l: Left wrist image (numpy array) 
+        img_r: Right wrist image (numpy array)
+        task_log_dir: Directory to save images
+        timestamp: Timestamp string for filename
+        logger: Logger instance for error reporting (optional)
+        save_individual: Whether to save individual camera images (default: False)
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Create images directory if it doesn't exist
+        images_dir = os.path.join(task_log_dir)
+        os.makedirs(images_dir, exist_ok=True)
+        
+        # Resize images to target height
+        img_h_render, img_l_render, img_r_render = resize_images_to_target_height(img_h, img_l, img_r)
+
+        # Save individual camera images if requested
+        if save_individual:
+            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
+            cv2.imwrite(os.path.join(images_dir, f"{timestamp}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
+        
+        # Save combined image
+        combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
+        cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
+        
+        return True
+        
+    except Exception as e:
+        if logger:
+            logger.warning(f"Error saving images: {e}")
+        else:
+            print(f"Error saving images: {e}")
+        return False
+
+def save_joint_step_images(sim_ros_node, bridge, task_log_dir, count, step_index, logger=None, save_individual=False):
+    """
+    Save images from joint step execution.
+    
+    Args:
+        sim_ros_node: ROS node for getting images
+        bridge: CV bridge for image conversion
+        task_log_dir: Directory to save images
+        count: Current inference count
+        step_index: Current step index
+        logger: Logger instance for error reporting (optional)
+        save_individual: Whether to save individual camera images (default: False)
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Get current images from ROS node
+        img_h_step = bridge.compressed_imgmsg_to_cv2(
+            sim_ros_node.get_img_head(), desired_encoding="rgb8"
+        )
+        img_l_step = bridge.compressed_imgmsg_to_cv2(
+            sim_ros_node.get_img_left_wrist(), desired_encoding="rgb8"
+        )
+        img_r_step = bridge.compressed_imgmsg_to_cv2(
+            sim_ros_node.get_img_right_wrist(), desired_encoding="rgb8"
+        )
+        
+        # Create step timestamp
+        step_timestamp = f"{count:06d}_{step_index:06d}"
+        
+        # Save images using the common function
+        return save_inference_images(img_h_step, img_l_step, img_r_step, task_log_dir, step_timestamp, logger, save_individual)
+        
+    except Exception as e:
+        if logger:
+            logger.warning(f"Error saving step images: {e}")
+        else:
+            print(f"Error saving step images: {e}")
+        return False
+
 # Global variables for cleanup
 video_writer_global = None
 video_segment_counter_global = 0
@@ -528,31 +631,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                 # Save individual images if video recording is enabled
                 if enable_video_recording:
-                    try:
-                        # Create images directory if it doesn't exist
-                        images_dir = os.path.join(task_log_dir)
-                        os.makedirs(images_dir, exist_ok=True)
-                        
-                        # Process image to same height before combining
-                        target_height = 224
-                        img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
-                        img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
-                        img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
-
-                        # Save individual camera images
-                        timestamp = f"{count:06d}"
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
-                        
-                        # Also save combined image
-                        combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-                        # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
-                        # infer_img_prefix = config.inference_step_image_prefix
-                        cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
-
-                    except Exception as e:
-                        logger.warning(f"Error saving images: {e}")
+                    timestamp = f"{count:06d}"
+                    save_inference_images(img_h, img_l, img_r, task_log_dir, timestamp, logger, save_individual=False)
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -689,38 +769,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                         act_raw = sim_ros_node.get_joint_state()
                         if enable_video_recording and config.save_per_joint_step_images and i == 0:
                             # Save images for each joint step if enabled
-                            try:
-                                img_h_step = bridge.compressed_imgmsg_to_cv2(
-                                    sim_ros_node.get_img_head(), desired_encoding="rgb8"
-                                )
-                                img_l_step = bridge.compressed_imgmsg_to_cv2(
-                                    sim_ros_node.get_img_left_wrist(), desired_encoding="rgb8"
-                                )
-                                img_r_step = bridge.compressed_imgmsg_to_cv2(
-                                    sim_ros_node.get_img_right_wrist(), desired_encoding="rgb8"
-                                )
-                                # Process image to same height before combining
-                                target_height = 224
-                                img_h_render = cv2.resize(img_h_step, (int(img_h_step.shape[1] * target_height / img_h_step.shape[0]), target_height))
-                                img_l_render = cv2.resize(img_l_step, (int(img_l_step.shape[1] * target_height / img_l_step.shape[0]), target_height))
-                                img_r_render = cv2.resize(img_r_step, (int(img_r_step.shape[1] * target_height / img_r_step.shape[0]), target_height))
-
-                                # Save individual camera images
-                                timestamp = f"{count:06d}"
-                                step_timestamp = f"{count:06d}_{step_index:06d}"
-                                images_dir = os.path.join(task_log_dir)
-                                # joint_step_img_prefix = config.joint_step_image_prefix
-                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
-                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
-                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
-
-                                # Also save combined image
-                                combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-                                # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
-                                cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_combined.jpg"), combined_img)
-
-                            except Exception as e:
-                                logger.warning(f"Error saving step images: {e}")
+                            save_joint_step_images(sim_ros_node, bridge, task_log_dir, count, step_index, logger, save_individual=False)
 
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
@@ -740,8 +789,6 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             if interp_joints == interpolated_steps[-1]:
                                 logger.info(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
-
-
 
 def _action_task_substep_progress(action_raw):
     """
