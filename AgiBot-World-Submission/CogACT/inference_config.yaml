@@ -106,40 +106,40 @@ task_progression:
     iros_open_drawer_and_store_items: "restrict_inference_count"
     default: "by_progress"
 
-# # =========================================================================
-# # HEAD JOINT CONFIGURATIONS
-# # =========================================================================
-# head_joint_configurations:
-#   iros_clear_the_countertop_waste:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.4593
-#   iros_restock_supermarket_items:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.3839745594177246
-#   iros_clear_table_in_the_restaurant:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.43633231
-#   iros_stamp_the_seal:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.384
-#   iros_pack_in_the_supermarket:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.43633231
-#   iros_heat_the_food_in_the_microwave:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.43633231
-#   iros_open_drawer_and_store_items:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.2617993878
-#   iros_pack_moving_objects_from_conveyor:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.4362
-#   iros_pickup_items_from_the_freezer:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.4362
-#   iros_make_a_sandwich:
-#     idx11_head_joint1: 0.0
-#     idx12_head_joint2: 0.43634
+# =========================================================================
+# HEAD JOINT CONFIGURATIONS
+# =========================================================================
+head_joint_configurations:
+  iros_clear_the_countertop_waste:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4593
+  iros_restock_supermarket_items:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.3839745594177246
+  iros_clear_table_in_the_restaurant:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_stamp_the_seal:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.384
+  iros_pack_in_the_supermarket:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_heat_the_food_in_the_microwave:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_open_drawer_and_store_items:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.2617993878
+  iros_pack_moving_objects_from_conveyor:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4362
+  iros_pickup_items_from_the_freezer:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4362
+  iros_make_a_sandwich:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43634
 
 # =========================================================================
 # POLICY CONFIGURATION

@@ -151,58 +151,6 @@ def get_instruction(task_name):
 #         # the last substep is the final step, so return the last instruction
 #         return instructions[-1]
     
-def get_head_joint_cfg(task_name):
-    # Define your joint configurations per task
-    task_joint_cfgs = {
-        "iros_clear_the_countertop_waste": {
-            "idx11_head_joint1": 0.,
-            "idx12_head_joint2": 0.4593
-        },
-        "iros_restock_supermarket_items": {
-            "idx11_head_joint1": 0.,
-            "idx12_head_joint2": 0.3839745594177246
-            # "idx12_head_joint2": 0.43633231, # not consiste with GUI joint state and iros but it works, find it by seting task to pack_in_the supermarket but work well
-        },
-        "iros_clear_table_in_the_restaurant": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43633231
-        },
-        "iros_stamp_the_seal": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.384
-        },
-        "iros_pack_in_the_supermarket": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43633231,
-            # "idx12_head_joint2": 0.3839745594177246, 
-        },
-        "iros_heat_the_food_in_the_microwave": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43633231
-        },
-        "iros_open_drawer_and_store_items": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.2617993878
-        },
-        "iros_pack_moving_objects_from_conveyor": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.4362
-        },
-        "iros_pickup_items_from_the_freezer": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.4362
-        },
-        "iros_make_a_sandwich": {
-            "idx11_head_joint1": 0.0,
-            "idx12_head_joint2": 0.43634
-        }
-    }
-    
-    if task_name in task_joint_cfgs:
-        return task_joint_cfgs[task_name]
-    else:
-        raise ValueError(f"Joint configuration for task '{task_name}' not defined.")
-    
 def get_sim_time(sim_ros_node):
     sim_time = sim_ros_node.get_clock().now().nanoseconds * 1e-9
     return sim_time
@@ -459,7 +407,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     
     lang = get_instruction(task_name=task_name)
     curr_task_substep_index = 0
-    head_joint_cfg = get_head_joint_cfg(task_name=task_name)
+    head_joint_cfg = config.get_head_joint_cfg(task_name=task_name)
     
     # Counter for inference steps in current substep
     substep_inference_counter = 0
