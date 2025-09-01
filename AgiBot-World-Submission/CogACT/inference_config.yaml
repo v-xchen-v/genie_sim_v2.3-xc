@@ -121,18 +121,18 @@ task_progression:
     iros_pickup_items_from_the_freezer: 0.95
     iros_make_a_sandwich: 0.9
   
-#   # Minimum inference counters before advancing
-#   min_inference_counters:
-#     iros_pack_in_the_supermarket: 12
-#     iros_restock_supermarket_items: 5
-#     iros_stamp_the_seal: 10
-#     iros_clear_the_countertop_waste: 6
-#     iros_clear_table_in_the_restaurant: 10
-#     iros_heat_the_food_in_the_microwave: 40
-#     iros_open_drawer_and_store_items: 32
-#     iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
-#     iros_pickup_items_from_the_freezer: 24
-#     iros_make_a_sandwich: 12
+  # Minimum inference counters before advancing
+  min_inference_counters:
+    iros_pack_in_the_supermarket: 12
+    iros_restock_supermarket_items: 5
+    iros_stamp_the_seal: 10
+    iros_clear_the_countertop_waste: 6
+    iros_clear_table_in_the_restaurant: 10
+    iros_heat_the_food_in_the_microwave: 40
+    iros_open_drawer_and_store_items: 32
+    iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
+    iros_pickup_items_from_the_freezer: 24
+    iros_make_a_sandwich: 12
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
@@ -188,7 +188,7 @@ head_joint_configurations:
 policy:
   # API settings
   ip: "10.190.172.212"
-  port: 19030  # Current: no aug, step~20k
+  port: 19020  # Current: no aug, step~20k
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k

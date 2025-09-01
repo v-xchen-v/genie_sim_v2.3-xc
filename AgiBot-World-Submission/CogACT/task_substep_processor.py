@@ -87,18 +87,18 @@ def get_task_progression_config():
         #     "iros_pickup_items_from_the_freezer": 0.4,
         #     "iros_make_a_sandwich": 0.9,
         # },
-        "min_inference_counters": {
-            "iros_pack_in_the_supermarket": 12,  # 1-8 steps
-            "iros_restock_supermarket_items": 5,  # 1-16 steps
-            "iros_stamp_the_seal": 10,
-            "iros_clear_the_countertop_waste": 6,
-            "iros_clear_table_in_the_restaurant": 10,
-            "iros_heat_the_food_in_the_microwave": 40,
-            "iros_open_drawer_and_store_items": 20,
-            "iros_pack_moving_objects_from_conveyor": 12, # for steps: [0, 4, 8, 12], 6 is enough for pickup directly but not enough for failed and retry, 12 is enough for failed and retry
-            "iros_pickup_items_from_the_freezer": 24,
-            "iros_make_a_sandwich": 12,
-        },
+        # "min_inference_counters": {
+        #     "iros_pack_in_the_supermarket": 12,  # 1-8 steps
+        #     "iros_restock_supermarket_items": 5,  # 1-16 steps
+        #     "iros_stamp_the_seal": 10,
+        #     "iros_clear_the_countertop_waste": 6,
+        #     "iros_clear_table_in_the_restaurant": 10,
+        #     "iros_heat_the_food_in_the_microwave": 40,
+        #     "iros_open_drawer_and_store_items": 32,
+        #     "iros_pack_moving_objects_from_conveyor": 12, # for steps: [0, 4, 8, 12], 6 is enough for pickup directly but not enough for failed and retry, 12 is enough for failed and retry
+        #     "iros_pickup_items_from_the_freezer": 24,
+        #     "iros_make_a_sandwich": 12,
+        # },
         # "max_inference_counters": {
         #     "iros_pack_in_the_supermarket": 48,  # 1-8 steps
         #     "iros_heat_the_food_in_the_microwave": 40,  # 1-8 steps
@@ -284,6 +284,7 @@ def handle_substep_progression(action, task_name, curr_task_substep_index, subst
     task_config = get_task_progression_config()
     task_config["progress_thresholds"] = config.get_task_progression_config()["progress_thresholds"]
     task_config["max_inference_counters"] = config.get_task_progression_config().get("max_inference_counters", {})
+    task_config["min_inference_counters"] = config.get_task_progression_config().get("min_inference_counters", {})
     
     # Determine if we should advance based on the selected strategy
     if mode == "legacy":
