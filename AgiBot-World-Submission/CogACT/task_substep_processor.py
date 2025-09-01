@@ -105,6 +105,8 @@ def get_task_progression_config():
             # "iros_restock_supermarket_items": 48,  # 1-8 steps
             # "iros_open_drawer_and_store_items": 40,  # 1-8 steps
             "iros_open_drawer_and_store_items": 20,  # 1-16 steps
+            # "iros_pickup_items_from_the_freezer": 40,  # 1-16 steps
+            "iros_pickup_items_from_the_freezer": 80,  # 1-8 steps
         }
     }
 
