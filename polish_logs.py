@@ -42,7 +42,7 @@ import os
 class Config:
     DEFAULT_VIDEO_RECORDINGS_DIR = "AgiBot-World-Submission/CogACT/video_recordings"
     VIDEO_OUTPUT_FORMAT = 'mp4'
-    DEFAULT_FPS = 10
+    DEFAULT_FPS = 20
     SAVE_MODE = 'per_joint_step'  # Options: 'per_inference', 'per_joint_step'
     # DEFAULT_FPS = 2
     # SAVE_MODE = 'per_inference'  # Options: 'per_inference', 'per_joint_step'
