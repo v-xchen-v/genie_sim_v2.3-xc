@@ -134,11 +134,12 @@ task_progression:
 #     iros_pickup_items_from_the_freezer: 24
 #     iros_make_a_sandwich: 12
   
-#   # Maximum inference counters (for timeout)
-#   max_inference_counters:
-#     iros_pack_in_the_supermarket: 48
-#     iros_heat_the_food_in_the_microwave: 40
-#     iros_pickup_items_from_the_freezer: 40  # 20*2 for 8 steps
+  # Maximum inference counters (for timeout)
+  max_inference_counters:
+    iros_pack_in_the_supermarket: 48
+    iros_heat_the_food_in_the_microwave: 40
+    iros_pickup_items_from_the_freezer: 80  # 1-12 steps
+    iros_open_drawer_and_store_items: 80  # 1-8 steps
   
   # Default progression strategy for each task
   task_progression_strategies:

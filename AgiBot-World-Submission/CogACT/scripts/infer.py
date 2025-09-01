@@ -22,7 +22,7 @@ from ee_pose_to_joint_processor import EEtoJointProcessor
 from config_loader import get_config
 from video_utils import save_inference_images, save_joint_step_images, VideoRecordingManager
 from task_substep_processor import (
-    get_instruction, 
+    get_full_instruction, 
     get_num_substeps, 
     handle_substep_progression
 )
@@ -217,7 +217,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Update SIM_INIT_TIME from config
     SIM_INIT_TIME = 8
     
-    lang = get_instruction(task_name=task_name)
+    lang = get_full_instruction(task_name=task_name)
     curr_task_substep_index = 0
     head_joint_cfg = config.get_head_joint_cfg(task_name=task_name)
     
