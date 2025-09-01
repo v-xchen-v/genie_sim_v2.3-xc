@@ -5,12 +5,13 @@ sys.path.append(str(Path(__file__).parent))
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from pathlib import Path
 
 from kinematics.g1_relax_ik import G1RelaxSolver
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
-from gripper_signal_processor import GripperSignalFilter  
+from gripper_signal_processor import GripperSignalFilter
+from config_loader import get_config  
 
 class EEtoJointProcessor:
     """
@@ -19,6 +20,9 @@ class EEtoJointProcessor:
     """
     ### ------------Public API------------ ###
     def __init__(self):
+        # Load configuration
+        self.config = get_config()
+        
         self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
         if not self.fk_urdf_path.exists():
             raise FileNotFoundError(f"URDF file not found: {self.fk_urdf_path}")
@@ -48,10 +52,6 @@ class EEtoJointProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
-        
-        # Gripper scaling strategy configuration
-        # self.gripper_strategy = "larger_two_side"  # Default to new strategy
-        self.gripper_strategy = "larger_one_side"  # Default to original strategy
 
         
     
@@ -217,33 +217,26 @@ class EEtoJointProcessor:
 
         gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
 
-        # Use configured gripper scaling strategy
-        # convert to joint command
-        # ratio = 70.0 / 120.0  # 70 is the max joint angle for the gripper, 120 is the max value in VLA action
-        # ratio = 1.2/0.7853981633974483  # for testing
+        # Get gripper strategy and ratio from configuration
+        gripper_strategy = self.config.get_gripper_strategy(task_name)
+        ratio = self.config.get_gripper_ratio(task_name, gripper_strategy)
         
-        if task_name == "iros_pack_moving_objects_from_conveyor":
-            self.gripper_strategy = "larger_two_side"
-        else:
-            self.gripper_strategy = "larger_one_side"
+        print(f"Using gripper strategy: {gripper_strategy} with ratio: {ratio:.3f} for {arm} arm in task: {task_name}")
 
-        if self.gripper_strategy == "larger_one_side":
+        # Apply the configured strategy
+        if gripper_strategy == "larger_one_side":
             # Strategy 1: Original - larger on one side (amplify values directly)
-            ratio = 1.2/0.7
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
-        elif self.gripper_strategy == "larger_two_side":
+        elif gripper_strategy == "larger_two_side":
             # Strategy 2: New - larger on both sides around center
-            ratio = 1.2/0.7  # for testing, make the gripper more sensitive
             gripper_upper = 0.7853981633974483  # 45 degrees in radians
             center = gripper_upper/2.0  # Center point (0.39269908169872414)
-            # Transform gripper values: (value - 0.39269908169872414) * ratio, then map back to larger range
+            # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
             gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
         else:
-            raise ValueError(f"Unknown gripper strategy: {self.gripper_strategy}")
-        
-        print(f"Using gripper strategy: {self.gripper_strategy} for {arm} arm")
+            raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
         # Apply gripper signal filter
         gripper_singal_filter = GripperSignalFilter(
@@ -624,16 +617,28 @@ class EEtoJointProcessor:
         T_obj_in_realcam = T_real2sim @ T_obj_in_simcam
         return T_obj_in_realcam
 
-    def set_gripper_strategy(self, strategy: str):
-        """
-        Set the gripper scaling strategy.
+    # def set_gripper_strategy(self, strategy: str, task_name: str = "default"):
+    #     """
+    #     Override gripper strategy in configuration.
         
-        Args:
-            strategy: Either "larger_one_side" or "larger_two_side"
-                - "larger_one_side": Original strategy - amplify values directly
-                - "larger_two_side": New strategy - amplify on both sides around center
-        """
-        if strategy not in ["larger_one_side", "larger_two_side"]:
-            raise ValueError(f"Invalid gripper strategy: {strategy}. Must be 'larger_one_side' or 'larger_two_side'")
-        self.gripper_strategy = strategy
-        print(f"Gripper strategy set to: {strategy}")
+    #     Args:
+    #         strategy: Either "larger_one_side" or "larger_two_side"
+    #             - "larger_one_side": Original strategy - amplify values directly  
+    #             - "larger_two_side": New strategy - amplify on both sides around center
+    #         task_name: Task name to set strategy for (updates config temporarily)
+    #     """
+    #     if strategy not in ["larger_one_side", "larger_two_side"]:
+    #         raise ValueError(f"Invalid gripper strategy: {strategy}. Must be 'larger_one_side' or 'larger_two_side'")
+        
+    #     # Update the config temporarily
+    #     self.config.config['task_execution']['gripper_config']['strategy_per_task'][task_name] = strategy
+    #     print(f"Gripper strategy set to: {strategy} for task: {task_name}")
+
+    # def get_gripper_config(self) -> Dict[str, Any]:
+    #     """Get the current gripper configuration."""
+    #     return self.config.get_gripper_config()
+
+    # def reload_config(self):
+    #     """Reload configuration from file."""
+    #     self.config.reload()
+    #     print("Configuration reloaded from file.")

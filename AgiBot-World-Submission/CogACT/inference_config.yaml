@@ -44,17 +44,57 @@ task_execution:
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   
-#   # Gripper force multipliers for specific tasks
-#   gripper_force_multipliers:
-#     iros_pack_moving_objects_from_conveyor:
-#       left: 1.5
-#       right: 1.5
-#     iros_restock_supermarket_items:
-#       left: 1.7
-#       right: 1.7
-#     iros_make_a_sandwich:
-#       left: 1.5
-#       right: 1.5
+  # Gripper configuration
+  gripper_config:
+    # Default gripper ratios for scaling
+    default_ratios:
+      larger_one_side: 1.714  # 1.2/0.7
+      larger_two_side: 1.714  # 1.2/0.7
+    
+    # Task-specific gripper strategies
+    strategy_per_task:
+      iros_pack_moving_objects_from_conveyor: "larger_two_side"
+      iros_pickup_items_from_the_freezer: "larger_two_side"
+      default: "larger_one_side"
+    
+    # Task-specific gripper ratios (overrides default)
+    ratios_per_task:
+      iros_pack_moving_objects_from_conveyor:
+        larger_two_side: 1.714
+      iros_pickup_items_from_the_freezer:
+        larger_two_side: 1.714
+      # iros_restock_supermarket_items:
+      #   larger_one_side: 1.8
+      # iros_make_a_sandwich:
+      #   larger_one_side: 1.6
+    
+    # # Gripper timing adjustment (frames to shift forward)
+    # timing_adjustment:
+    #   # Default timing adjustments based on action sequence length
+    #   frames_16: 7  # For 16-step sequences
+    #   frames_8: 3   # For 8-step sequences  
+    #   frames_4: 1   # For 4-step sequences
+    #   default: 0    # For other sequences
+      
+    #   # Task-specific timing adjustments
+    #   task_specific:
+    #     iros_pack_in_the_supermarket: 
+    #       frames_16: 7
+    #       frames_8: 3
+    #       frames_4: 1
+    #     iros_restock_supermarket_items:
+    #       frames_16: 7
+    #       frames_8: 3
+    #       frames_4: 1
+    
+    # # Gripper signal filter parameters
+    # signal_filter:
+    #   ema_alpha: 0.25
+    #   max_step: 0.08
+    #   dropout_abs: 0.05
+    #   dropout_rel_drop: 0.5
+    #   lookahead: 1
+    #   monotone: null  # or 'closing'/'opening' for specific phases
   
 #   # Number of interpolation steps for different tasks
 #   interpolation_steps:
@@ -78,7 +118,7 @@ task_progression:
     iros_heat_the_food_in_the_microwave: 0.6
     iros_open_drawer_and_store_items: 0.97
     iros_pack_moving_objects_from_conveyor: 0.4
-    iros_pickup_items_from_the_freezer: 0.4
+    iros_pickup_items_from_the_freezer: 0.95
     iros_make_a_sandwich: 0.9
   
 #   # Minimum inference counters before advancing
@@ -147,12 +187,13 @@ head_joint_configurations:
 policy:
   # API settings
   ip: "10.190.172.212"
-  port: 19020  # Current: no aug, step~20k
+  port: 19030  # Current: no aug, step~20k
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
   # 17040: no aug, step 40k
   # 18020: aug, step~20k
+  # 19020: no aug, step~20k, use new sim data
 
 # # =========================================================================
 # # SIMULATION CONFIGURATION

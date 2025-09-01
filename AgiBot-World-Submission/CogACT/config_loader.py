@@ -123,6 +123,56 @@ class InferenceConfig:
         
         return steps_config
     
+    def get_gripper_config(self) -> Dict[str, Any]:
+        """Get complete gripper configuration."""
+        return self.config['task_execution']['gripper_config']
+    
+    def get_gripper_strategy(self, task_name: str) -> str:
+        """Get gripper strategy for a specific task."""
+        gripper_config = self.get_gripper_config()
+        strategy_config = gripper_config['strategy_per_task']
+        return strategy_config.get(task_name, strategy_config['default'])
+    
+    def get_gripper_ratio(self, task_name: str, strategy: str = None) -> float:
+        """Get gripper ratio for a specific task and strategy."""
+        gripper_config = self.get_gripper_config()
+        
+        # Use provided strategy or get from task configuration
+        if strategy is None:
+            strategy = self.get_gripper_strategy(task_name)
+        
+        # Check for task-specific ratio first
+        task_ratios = gripper_config['ratios_per_task'].get(task_name, {})
+        if strategy in task_ratios:
+            return task_ratios[strategy]
+        
+        # Fall back to default ratio
+        return gripper_config['default_ratios'][strategy]
+    
+    # def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
+    #     """Get gripper timing adjustment (frames to shift forward) for a task."""
+    #     gripper_config = self.get_gripper_config()
+    #     timing_config = gripper_config['timing_adjustment']
+        
+    #     # Check task-specific timing first
+    #     task_timing = timing_config.get('task_specific', {}).get(task_name, {})
+        
+    #     # Map sequence length to frame key
+    #     frame_key = f"frames_{sequence_length}"
+        
+    #     # Get task-specific timing or fall back to default
+    #     if frame_key in task_timing:
+    #         return task_timing[frame_key]
+    #     elif frame_key in timing_config:
+    #         return timing_config[frame_key]
+    #     else:
+    #         return timing_config['default']
+    
+    # def get_gripper_signal_filter_params(self) -> Dict[str, Any]:
+    #     """Get gripper signal filter parameters."""
+    #     gripper_config = self.get_gripper_config()
+    #     return gripper_config['signal_filter']
+
     # def get_gripper_multipliers(self, task_name: str) -> Dict[str, float]:
     #     """Get gripper force multipliers for a task."""
     #     multipliers = self.config['task_execution']['gripper_force_multipliers']
