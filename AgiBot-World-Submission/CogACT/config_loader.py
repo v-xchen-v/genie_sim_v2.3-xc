@@ -153,17 +153,17 @@ class InferenceConfig:
         strategies = self.config['task_progression']['task_progression_strategies']
         return strategies.get(task_name, strategies["default"])
     
-    # # =========================================================================
-    # # HEAD JOINT CONFIGURATIONS
-    # # =========================================================================
+    # =========================================================================
+    # HEAD JOINT CONFIGURATIONS
+    # =========================================================================
     
-    # def get_head_joint_cfg(self, task_name: str) -> Dict[str, float]:
-    #     """Get head joint configuration for a specific task."""
-    #     head_configs = self.config['head_joint_configurations']
-    #     if task_name in head_configs:
-    #         return head_configs[task_name]
-    #     else:
-    #         raise ValueError(f"Joint configuration for task '{task_name}' not defined.")
+    def get_head_joint_cfg(self, task_name: str) -> Dict[str, float]:
+        """Get head joint configuration for a specific task."""
+        head_configs = self.config['head_joint_configurations']
+        if task_name in head_configs:
+            return head_configs[task_name]
+        else:
+            raise ValueError(f"Joint configuration for task '{task_name}' not defined.")
     
     # =========================================================================
     # POLICY CONFIGURATION
