@@ -20,6 +20,7 @@ from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
 from ee_pose_to_joint_processor import EEtoJointProcessor
 from config_loader import get_config
+from video_utils import save_inference_images, save_joint_step_images, VideoRecordingManager
 
 import time
 import argparse
@@ -474,20 +475,16 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
 
-    # Initialize image saving variables (only if enabled)
+    # Initialize video recording manager
+    video_manager = VideoRecordingManager(task_log_dir, task_name, logger)
     if enable_video_recording:  # Note: despite the name, this now saves individual images
         # Set global variables for cleanup
         task_log_dir_global = task_log_dir
         task_name_global = task_name
         
-        # Create images directory
-        images_dir = task_log_dir
-        os.makedirs(images_dir, exist_ok=True)
-        
-        logger.info(f"📷 Image saving enabled - images will be saved to: {images_dir}")
-        logger.info(f"📁 Image naming format: XXXXXX_[head|left_wrist|right_wrist|combined].jpg")
+        video_manager.enable_recording()
     else:
-        logger.info("📵 Image saving disabled")
+        video_manager.disable_recording()
 
     while rclpy.ok():
         img_h_raw = sim_ros_node.get_img_head()
@@ -528,30 +525,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                 # Save individual images if video recording is enabled
                 if enable_video_recording:
-                    try:
-                        # Create images directory if it doesn't exist
-                        images_dir = os.path.join(task_log_dir)
-                        os.makedirs(images_dir, exist_ok=True)
-                        
-                        # Process image to same height before combining
-                        target_height = 224
-                        img_h_render = cv2.resize(img_h, (int(img_h.shape[1] * target_height / img_h.shape[0]), target_height))
-                        img_l_render = cv2.resize(img_l, (int(img_l.shape[1] * target_height / img_l.shape[0]), target_height))
-                        img_r_render = cv2.resize(img_r, (int(img_r.shape[1] * target_height / img_r.shape[0]), target_height))
-
-                        # Save individual camera images
-                        timestamp = f"{count:06d}"
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
-                        # cv2.imwrite(os.path.join(images_dir, f"{timestamp}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
-                        
-                        # Also save combined image
-                        combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
-                        # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
-                        cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
-                            
-                    except Exception as e:
-                        logger.warning(f"Error saving images: {e}")
+                    timestamp = f"{count:06d}"
+                    video_manager.save_inference_step_images(img_h, img_l, img_r, timestamp, save_individual=False)
                 
                 state = np.array(act_raw.position)
                 # state = None # if use model without state
@@ -686,6 +661,10 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                         # Interpolate between current joint positions and target joint positions
                         act_raw = sim_ros_node.get_joint_state()
+                        if enable_video_recording and config.save_per_joint_step_images and i == 0:
+                            # Save images for each joint step if enabled
+                            video_manager.save_joint_step_images(sim_ros_node, bridge, count, step_index, save_individual=False)
+
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
                         if task_name == "iros_clear_countertop_waste" or \
@@ -704,8 +683,6 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                             if interp_joints == interpolated_steps[-1]:
                                 logger.info(f"Step {step_index} - Left gripper joint angle: {np.rad2deg(interp_joints[7]):.1f}°, Right gripper joint angle: {np.rad2deg(interp_joints[15]):.1f}°")
                             sim_ros_node.loop_rate.sleep()
-
-
 
 def _action_task_substep_progress(action_raw):
     """
