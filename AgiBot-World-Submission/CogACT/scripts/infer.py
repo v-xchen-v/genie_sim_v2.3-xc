@@ -548,8 +548,9 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                         # Also save combined image
                         combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
                         # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+                        # infer_img_prefix = config.inference_step_image_prefix
                         cv2.imwrite(os.path.join(images_dir, f"{timestamp}_combined.jpg"), combined_img)
-                            
+
                     except Exception as e:
                         logger.warning(f"Error saving images: {e}")
                 
@@ -686,6 +687,41 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                         # Interpolate between current joint positions and target joint positions
                         act_raw = sim_ros_node.get_joint_state()
+                        if enable_video_recording and config.save_per_joint_step_images and i == 0:
+                            # Save images for each joint step if enabled
+                            try:
+                                img_h_step = bridge.compressed_imgmsg_to_cv2(
+                                    sim_ros_node.get_img_head(), desired_encoding="rgb8"
+                                )
+                                img_l_step = bridge.compressed_imgmsg_to_cv2(
+                                    sim_ros_node.get_img_left_wrist(), desired_encoding="rgb8"
+                                )
+                                img_r_step = bridge.compressed_imgmsg_to_cv2(
+                                    sim_ros_node.get_img_right_wrist(), desired_encoding="rgb8"
+                                )
+                                # Process image to same height before combining
+                                target_height = 224
+                                img_h_render = cv2.resize(img_h_step, (int(img_h_step.shape[1] * target_height / img_h_step.shape[0]), target_height))
+                                img_l_render = cv2.resize(img_l_step, (int(img_l_step.shape[1] * target_height / img_l_step.shape[0]), target_height))
+                                img_r_render = cv2.resize(img_r_step, (int(img_r_step.shape[1] * target_height / img_r_step.shape[0]), target_height))
+
+                                # Save individual camera images
+                                timestamp = f"{count:06d}"
+                                step_timestamp = f"{count:06d}_{step_index:06d}"
+                                images_dir = os.path.join(task_log_dir)
+                                # joint_step_img_prefix = config.joint_step_image_prefix
+                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_head.jpg"), cv2.cvtColor(img_h_render, cv2.COLOR_RGB2BGR))
+                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_left_wrist.jpg"), cv2.cvtColor(img_l_render, cv2.COLOR_RGB2BGR))
+                                # cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_{joint_step_img_prefix}_right_wrist.jpg"), cv2.cvtColor(img_r_render, cv2.COLOR_RGB2BGR))
+
+                                # Also save combined image
+                                combined_img = np.hstack((img_l_render, img_h_render, img_r_render))
+                                # combined_img_bgr = cv2.cvtColor(combined_img, cv2.COLOR_RGB2BGR)
+                                cv2.imwrite(os.path.join(images_dir, f"{step_timestamp}_combined.jpg"), combined_img)
+
+                            except Exception as e:
+                                logger.warning(f"Error saving step images: {e}")
+
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
                         if task_name == "iros_clear_countertop_waste" or \

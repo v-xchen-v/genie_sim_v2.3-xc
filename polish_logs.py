@@ -43,7 +43,16 @@ def merge_images_to_video(task_log_dir, task_name):
         final_writer = imageio.get_writer(final_video_path, fps=Config.DEFAULT_FPS)
         
         # Read and merge all images
-        images = sorted([img for img in os.listdir(task_log_dir) if "combined" in img and img.endswith(".jpg")])
+        # timestamp = f"{count:06d}", filename format: 000001_combine.jpg
+        # step_timestamp = f"{count:06d}_{step_index:06d}", filename format: 000001_000000_combined.jpg
+        # IMAGE = "per_inference"
+        IMAGE = "per_joint_step"
+        if IMAGE == "per_inference":
+            images = sorted([img for img in os.listdir(task_log_dir) if "combined" in img and img.endswith(".jpg") and len(img.split("_"))==2])
+        elif IMAGE == "per_joint_step":
+            images = sorted([img for img in os.listdir(task_log_dir) if "combined" in img and img.endswith(".jpg") and len(img.split("_"))==3])
+        
+        # images = sorted([img for img in os.listdir(task_log_dir) if "combined" in img and img.endswith(".jpg")])
         for img_name in images:
             img_path = os.path.join(task_log_dir, img_name)
             print(f"   Processing image {img_name}...")
@@ -86,14 +95,14 @@ def has_final_video(task_log_dir, task_name):
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser(description="Process robot inference logs to merge images into videos.")
-    parser.add_argument("--base-dirs", type=str, nargs='*', default=[Config.DEFAULT_VIDEO_RECORDINGS_DIR],
+    parser.add_argument("--base-dir", type=str, default= Config.DEFAULT_VIDEO_RECORDINGS_DIR,
                         help="Base directories to search for task logs.")
     parser.add_argument("--overwrite", action="store_true",
                         help="Overwrite existing final videos if they exist.")
     args = parser.parse_args()
 
     # If we have multiple segments, merge them
-    dirs = iter_root_folder_to_get_dirs(args.base_dirs[0])
+    dirs = iter_root_folder_to_get_dirs(args.base_dir)
     # print(f"Found {len(dirs)} task directories to process.")
     for dir in dirs:
         task_name, task_log_dir = get_task_name_info_from_dirname(str(dir))

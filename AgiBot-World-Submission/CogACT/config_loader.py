@@ -74,6 +74,21 @@ class InferenceConfig:
     #     """Get image save format."""
     #     return self.config['image_processing']['image_save_format']
     
+    @property
+    def save_per_joint_step_images(self) -> bool:
+        """Get whether to save images per joint execution step."""
+        return self.config['image_processing']['save_per_joint_step_images']
+    
+    # @property
+    # def joint_step_image_prefix(self) -> str:
+    #     """Get prefix for joint step images."""
+    #     return self.config['image_processing']['joint_step_image_prefix']
+    
+    # @property
+    # def inference_step_image_prefix(self) -> str:
+    #     """Get prefix for inference step images."""
+    #     return self.config['image_processing']['inference_step_image_prefix']
+    
     # =========================================================================
     # TASK EXECUTION CONFIGURATION
     # =========================================================================

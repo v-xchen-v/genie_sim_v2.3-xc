@@ -17,6 +17,11 @@ image_processing:
 #   save_combined_image: true  # Save combined image
 #   image_save_format: "jpg"  # Image format: jpg, png
 
+  # Detailed image saving per joint execution step
+  save_per_joint_step_images: true  # Save images for each joint command execution step
+  # joint_step_image_prefix: "joint_step"  # Prefix for joint step images
+  # inference_step_image_prefix: "inference"  # Prefix for inference step imagesuration for Robot Task Execution
+
 # =========================================================================
 # TASK EXECUTION CONFIGURATION
 # =========================================================================
