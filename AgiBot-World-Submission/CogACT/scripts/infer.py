@@ -151,6 +151,34 @@ def _get_unique_log_dir(base_dir, task_name):
             return iter_log_dir
         i += 1
 
+import matplotlib
+def depth_to_rgb_uint8(depth_img: np.ndarray, min_val: int, max_val: int, cmap_name: str = "turbo") -> np.ndarray:
+    """
+    将16位深度图转化为伪彩色RGB图 (uint8, 每通道0~255)
+    Args:
+        depth_img (np.ndarray): 输入深度图 (uint16)
+        min_val (int): 深度最小值 (归一化下界)
+        max_val (int): 深度最大值 (归一化上界)
+        cmap_name (str): 颜色映射 (matplotlib colormap)，如 "turbo", "viridis"
+    Returns:
+        rgb_img (np.ndarray): 伪彩色RGB图 (uint8, HxWx3)
+    """
+    # 转 float32 方便归一化
+    depth = depth_img.astype(np.float32)
+ 
+    # 归一化到 [0,1]
+    depth_norm = (depth - min_val) / (max_val - min_val)
+    depth_norm = np.clip(depth_norm, 0.0, 1.0)
+ 
+    # colormap 映射 → float32 [0,1]
+    # cmap = cm.get_cmap(cmap_name)
+    cmap = matplotlib.colormaps[cmap_name]
+    rgb_float = cmap(depth_norm)[..., :3]  # RGBA → RGB
+ 
+    # 转成 uint8 (0~255)
+    rgb_img = (rgb_float * 255).astype(np.uint8)
+ 
+    return rgb_img
 
 def infer(policy, task_name, enable_video_recording=False, enable_file_logging=True):
     """
@@ -250,6 +278,12 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         img_h_raw = sim_ros_node.get_img_head()
         img_l_raw = sim_ros_node.get_img_left_wrist()
         img_r_raw = sim_ros_node.get_img_right_wrist()
+        
+        # ADD depth images if needed
+        depth_img_h_raw = sim_ros_node.get_depth_img_head()
+        depth_img_l_raw = sim_ros_node.get_depth_img_left_wrist()
+        depth_img_r_raw = sim_ros_node.get_depth_img_right_wrist()
+        
         act_raw = sim_ros_node.get_joint_state()
         
         if (
@@ -260,6 +294,9 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
             and img_h_raw.header.stamp
             == img_l_raw.header.stamp
             == img_r_raw.header.stamp
+            and depth_img_h_raw is not None
+            and depth_img_l_raw is not None
+            and depth_img_r_raw is not None
         ):
             sim_time = get_sim_time(sim_ros_node)
             if sim_time > SIM_INIT_TIME:
@@ -275,13 +312,22 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     img_r_raw, desired_encoding="rgb8"
                 )
 
-                # # save images if needed for debugging
+                
+                # save images if needed for debugging
                 # cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
                 # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 # img_h_pil = Image.fromarray(img_h)
                 # img_l_pil = Image.fromarray(img_l)
                 # img_r_pil = Image.fromarray(img_r)
+
+                depth_img_h_normalized = depth_to_rgb_uint8(
+                    depth_img_h_raw, min_val=0.1, max_val=3.0, cmap_name="turbo")
+                cv2.imwrite(f"{current_path}/depth_img_h_{count}.png", depth_img_h_normalized)
+                # depth_img_h = depth_to_rgb_uint8(depth_img_h, min_val=0.1, max_val=3.0, cmap_name="turbo")
+                # cv2.imwrite(f"{current_path}/depth_img_h_{count}.png", depth_img_h)
+                # cv2.imwrite(f"{current_path}/depth_img_l_{count}.png", depth_img_l)
+                # cv2.imwrite(f"{current_path}/depth_img_r_{count}.png", depth_img_r)
 
                 # Save individual images if video recording is enabled
                 if enable_video_recording:
