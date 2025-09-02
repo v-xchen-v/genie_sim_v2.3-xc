@@ -26,6 +26,9 @@ from task_substep_processor import (
     get_num_substeps, 
     handle_substep_progression
 )
+from sensor_msgs.msg import (
+    CompressedImage,
+)
 
 import time
 import argparse
@@ -150,9 +153,30 @@ def _get_unique_log_dir(base_dir, task_name):
             os.makedirs(iter_log_dir)
             return iter_log_dir
         i += 1
+        
+        
+def decode_depth_image(msg: CompressedImage) -> np.ndarray:
+    # Convert CompressedImage -> OpenCV image
+    # cv2.imdecode returns a uint8/uint16/float32 array depending on encoding
+    np_arr = np.frombuffer(msg.data, np.uint8)
+    depth_img = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
+    # Now depth_img is a numpy array (H x W)
+    # - If Isaac Sim compressed it as PNG16 → dtype=uint16
+    # - If it used PNG32F → dtype=float32
+    print(depth_img.shape, depth_img.dtype)
 
-import matplotlib
+    # Convert to meters if needed
+    if depth_img.dtype == np.uint16:
+        # often stored in millimeters
+        depth_m = depth_img.astype(np.float32) / 1000.0
+    elif depth_img.dtype == np.float32:
+        depth_m = depth_img
+    else:
+        raise ValueError(f"Unexpected depth dtype: {depth_img.dtype}")
+    return depth_m # depth_m is uint16 in meters
+            
 def depth_to_rgb_uint8(depth_img: np.ndarray, min_val: int, max_val: int, cmap_name: str = "turbo") -> np.ndarray:
+    import matplotlib
     """
     将16位深度图转化为伪彩色RGB图 (uint8, 每通道0~255)
     Args:
@@ -321,8 +345,9 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # img_l_pil = Image.fromarray(img_l)
                 # img_r_pil = Image.fromarray(img_r)
 
+                depth_img_h = decode_depth_image(depth_img_h_raw) #uint16 in meters
                 depth_img_h_normalized = depth_to_rgb_uint8(
-                    depth_img_h_raw, min_val=0.1, max_val=3.0, cmap_name="turbo")
+                    depth_img_h, min_val=0.1, max_val=3.0, cmap_name="turbo")
                 cv2.imwrite(f"{current_path}/depth_img_h_{count}.png", depth_img_h_normalized)
                 # depth_img_h = depth_to_rgb_uint8(depth_img_h, min_val=0.1, max_val=3.0, cmap_name="turbo")
                 # cv2.imwrite(f"{current_path}/depth_img_h_{count}.png", depth_img_h)

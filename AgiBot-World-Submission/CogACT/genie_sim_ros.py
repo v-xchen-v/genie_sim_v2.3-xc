@@ -137,25 +137,8 @@ class SimROSNode(Node):
     def callback_depth_image_head(self, msg: CompressedImage):
         # print(msg.header)
         with self.lock_depth_img_head:
-            # self.depth_img_head = msg
-            # Convert CompressedImage -> OpenCV image
-            # cv2.imdecode returns a uint8/uint16/float32 array depending on encoding
-            np_arr = np.frombuffer(msg.data, np.uint8)
-            depth_img = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
-            # Now depth_img is a numpy array (H x W)
-            # - If Isaac Sim compressed it as PNG16 → dtype=uint16
-            # - If it used PNG32F → dtype=float32
-            print(depth_img.shape, depth_img.dtype)
-
-            # Convert to meters if needed
-            if depth_img.dtype == np.uint16:
-                # often stored in millimeters
-                depth_m = depth_img.astype(np.float32) / 1000.0
-            elif depth_img.dtype == np.float32:
-                depth_m = depth_img
-            else:
-                raise ValueError(f"Unexpected depth dtype: {depth_img.dtype}")
-            self.depth_img_head = depth_m
+            self.depth_img_head = msg
+            
             
     def callback_depth_image_left_wrist(self, msg):
         # print(msg.header)
