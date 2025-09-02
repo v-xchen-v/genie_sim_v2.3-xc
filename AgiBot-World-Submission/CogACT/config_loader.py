@@ -49,6 +49,36 @@ class InferenceConfig:
         """Get image resize mode."""
         return self.config['image_processing']['resize_mode']
     
+    @property
+    def depth_images_enabled(self) -> bool:
+        """Get whether depth images are enabled."""
+        return self.config['image_processing'].get('depth_images', {}).get('enabled', False)
+    
+    @property 
+    def depth_save_debug_images(self) -> bool:
+        """Get whether to save depth debug images."""
+        return self.config['image_processing'].get('depth_images', {}).get('save_debug_images', False)
+    
+    @property
+    def depth_colormap(self) -> str:
+        """Get depth image colormap."""
+        return self.config['image_processing'].get('depth_images', {}).get('colormap', 'turbo')
+    
+    @property
+    def depth_range_min(self) -> float:
+        """Get minimum depth value for normalization."""
+        return self.config['image_processing'].get('depth_images', {}).get('depth_range', {}).get('min_val', 0.1)
+    
+    @property
+    def depth_range_max(self) -> float:
+        """Get maximum depth value for normalization."""
+        return self.config['image_processing'].get('depth_images', {}).get('depth_range', {}).get('max_val', 3.0)
+    
+    def get_depth_cameras_config(self) -> Dict[str, bool]:
+        """Get depth camera configuration."""
+        default_cameras = {'head': True, 'left_wrist': True, 'right_wrist': True}
+        return self.config['image_processing'].get('depth_images', {}).get('cameras', default_cameras)
+    
     # @property
     # def log_observations(self) -> bool:
     #     """Get whether to log observations."""

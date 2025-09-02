@@ -9,6 +9,28 @@ image_processing:
   resize_mode: "1x1"  # Options: "1x1", "4x3_pad_resize"
   # Note: Use "1x1" for augmented models, "4x3_pad_resize" for others
   
+  # Depth image handling configuration
+  depth_images:
+    enabled: false  # Set to true when model needs depth images as input
+    save_debug_images: false  # Save depth images to disk for debugging
+    colormap: "turbo"  # Colormap for depth visualization: "turbo", "viridis", "plasma", etc.
+    depth_range:
+      min_val: 0.1  # Minimum depth value in meters for normalization
+      max_val: 3.0  # Maximum depth value in meters for normalization
+    
+    # Which depth cameras to use (when enabled=true)
+    cameras:
+      head: true      # Use head depth camera
+      left_wrist: true   # Use left wrist depth camera  
+      right_wrist: true  # Use right wrist depth camera
+    
+    # Notes:
+    # - When enabled=false: depth images are not fetched at all (saves bandwidth)
+    # - When enabled=true: depth images are fetched and processed 
+    # - save_debug_images=true: saves colorized depth images to disk for debugging
+    # - Depth images are processed to float32 format in meters
+    # - To use depth images in the model, modify VLAInputProcessor.process() method
+  
 #   log_observations: false  # Whether to log observations during processing
   
 #   # Image saving settings
@@ -221,3 +243,27 @@ logging:
   
 #   # Progress logging frequency
 #   image_save_log_frequency: 10  # Log progress every N images
+
+# =========================================================================
+# EXAMPLE: ENABLE DEPTH IMAGES FOR MODELS THAT REQUIRE THEM
+# =========================================================================
+# To enable depth image processing for a model that requires depth input:
+# 
+# 1. Set depth_images.enabled to true
+# 2. Optionally enable save_debug_images for debugging
+# 3. Configure which cameras to use
+# 4. Modify VLAInputProcessor.process() to accept and use depth images
+#
+# Example configuration:
+# image_processing:
+#   depth_images:
+#     enabled: true
+#     save_debug_images: true  # For debugging
+#     colormap: "turbo"
+#     depth_range:
+#       min_val: 0.1
+#       max_val: 3.0
+#     cameras:
+#       head: true
+#       left_wrist: true
+#       right_wrist: true
