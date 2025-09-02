@@ -26,6 +26,9 @@ from task_substep_processor import (
     get_num_substeps, 
     handle_substep_progression
 )
+from sensor_msgs.msg import (
+    CompressedImage,
+)
 
 import time
 import argparse
@@ -150,7 +153,56 @@ def _get_unique_log_dir(base_dir, task_name):
             os.makedirs(iter_log_dir)
             return iter_log_dir
         i += 1
+        
+        
+def decode_depth_image(msg: CompressedImage) -> np.ndarray:
+    # Convert CompressedImage -> OpenCV image
+    # cv2.imdecode returns a uint8/uint16/float32 array depending on encoding
+    np_arr = np.frombuffer(msg.data, np.uint8)
+    depth_img = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
+    # Now depth_img is a numpy array (H x W)
+    # - If Isaac Sim compressed it as PNG16 → dtype=uint16
+    # - If it used PNG32F → dtype=float32
+    print(depth_img.shape, depth_img.dtype)
 
+    # Convert to meters if needed
+    if depth_img.dtype == np.uint16:
+        # often stored in millimeters
+        depth_m = depth_img.astype(np.float32) / 1000.0
+    elif depth_img.dtype == np.float32:
+        depth_m = depth_img
+    else:
+        raise ValueError(f"Unexpected depth dtype: {depth_img.dtype}")
+    return depth_m # depth_m is uint16 in meters
+            
+def depth_to_rgb_uint8(depth_img: np.ndarray, min_val: int, max_val: int, cmap_name: str = "turbo") -> np.ndarray:
+    import matplotlib
+    """
+    将16位深度图转化为伪彩色RGB图 (uint8, 每通道0~255)
+    Args:
+        depth_img (np.ndarray): 输入深度图 (uint16)
+        min_val (int): 深度最小值 (归一化下界)
+        max_val (int): 深度最大值 (归一化上界)
+        cmap_name (str): 颜色映射 (matplotlib colormap)，如 "turbo", "viridis"
+    Returns:
+        rgb_img (np.ndarray): 伪彩色RGB图 (uint8, HxWx3)
+    """
+    # 转 float32 方便归一化
+    depth = depth_img.astype(np.float32)
+ 
+    # 归一化到 [0,1]
+    depth_norm = (depth - min_val) / (max_val - min_val)
+    depth_norm = np.clip(depth_norm, 0.0, 1.0)
+ 
+    # colormap 映射 → float32 [0,1]
+    # cmap = cm.get_cmap(cmap_name)
+    cmap = matplotlib.colormaps[cmap_name]
+    rgb_float = cmap(depth_norm)[..., :3]  # RGBA → RGB
+ 
+    # 转成 uint8 (0~255)
+    rgb_img = (rgb_float * 255).astype(np.uint8)
+ 
+    return rgb_img
 
 def infer(policy, task_name, enable_video_recording=False, enable_file_logging=True):
     """
@@ -232,6 +284,16 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     total_substeps = get_num_substeps(task_name)
     logger.info(f"📊 Task '{task_name}' has {total_substeps} substeps")
     
+    # Log depth image configuration
+    if config.depth_images_enabled:
+        depth_cameras = config.get_depth_cameras_config()
+        enabled_cameras = [cam for cam, enabled in depth_cameras.items() if enabled]
+        logger.info(f"📷 Depth images ENABLED for cameras: {enabled_cameras}")
+        if config.depth_save_debug_images:
+            logger.info(f"🎨 Depth debug images will be saved with colormap: {config.depth_colormap}")
+    else:
+        logger.info("📷 Depth images DISABLED - not fetching depth data")
+    
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
 
@@ -250,7 +312,33 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         img_h_raw = sim_ros_node.get_img_head()
         img_l_raw = sim_ros_node.get_img_left_wrist()
         img_r_raw = sim_ros_node.get_img_right_wrist()
+        
+        # ADD depth images if needed - controlled by configuration
+        depth_img_h_raw = None
+        depth_img_l_raw = None
+        depth_img_r_raw = None
+        
+        if config.depth_images_enabled:
+            depth_cameras = config.get_depth_cameras_config()
+            if depth_cameras.get('head', True):
+                depth_img_h_raw = sim_ros_node.get_depth_img_head()
+            if depth_cameras.get('left_wrist', True):
+                depth_img_l_raw = sim_ros_node.get_depth_img_left_wrist()
+            if depth_cameras.get('right_wrist', True):
+                depth_img_r_raw = sim_ros_node.get_depth_img_right_wrist()
+        
         act_raw = sim_ros_node.get_joint_state()
+        
+        # Check if we have valid images and joint state
+        depth_check_passed = True
+        if config.depth_images_enabled:
+            depth_cameras = config.get_depth_cameras_config()
+            if depth_cameras.get('head', True) and depth_img_h_raw is None:
+                depth_check_passed = False
+            if depth_cameras.get('left_wrist', True) and depth_img_l_raw is None:
+                depth_check_passed = False
+            if depth_cameras.get('right_wrist', True) and depth_img_r_raw is None:
+                depth_check_passed = False
         
         if (
             img_h_raw
@@ -260,6 +348,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
             and img_h_raw.header.stamp
             == img_l_raw.header.stamp
             == img_r_raw.header.stamp
+            and depth_check_passed
         ):
             sim_time = get_sim_time(sim_ros_node)
             if sim_time > SIM_INIT_TIME:
@@ -275,13 +364,59 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     img_r_raw, desired_encoding="rgb8"
                 )
 
-                # # save images if needed for debugging
+                
+                # save images if needed for debugging
                 # cv2.imwrite(f"{current_path}/img_h_{count}.jpg", img_h)
                 # cv2.imwrite(f"{current_path}/img_l_{count}.jpg", img_l)
                 # cv2.imwrite(f"{current_path}/img_r_{count}.jpg", img_r)
                 # img_h_pil = Image.fromarray(img_h)
                 # img_l_pil = Image.fromarray(img_l)
                 # img_r_pil = Image.fromarray(img_r)
+
+                # Process depth images if enabled
+                depth_imgs_processed = {}
+                if config.depth_images_enabled:
+                    depth_cameras = config.get_depth_cameras_config()
+                    
+                    if depth_cameras.get('head', True) and depth_img_h_raw is not None:
+                        depth_img_h = decode_depth_image(depth_img_h_raw)
+                        depth_imgs_processed['head'] = depth_img_h
+                        
+                        # Save debug images if enabled
+                        if config.depth_save_debug_images:
+                            depth_img_h_normalized = depth_to_rgb_uint8(
+                                depth_img_h, 
+                                min_val=config.depth_range_min, 
+                                max_val=config.depth_range_max, 
+                                cmap_name=config.depth_colormap
+                            )
+                            cv2.imwrite(f"{current_path}/depth_img_h_{count}.png", depth_img_h_normalized)
+                    
+                    if depth_cameras.get('left_wrist', True) and depth_img_l_raw is not None:
+                        depth_img_l = decode_depth_image(depth_img_l_raw)
+                        depth_imgs_processed['left_wrist'] = depth_img_l
+                        
+                        if config.depth_save_debug_images:
+                            depth_img_l_normalized = depth_to_rgb_uint8(
+                                depth_img_l,
+                                min_val=config.depth_range_min,
+                                max_val=config.depth_range_max,
+                                cmap_name=config.depth_colormap
+                            )
+                            cv2.imwrite(f"{current_path}/depth_img_l_{count}.png", depth_img_l_normalized)
+                    
+                    if depth_cameras.get('right_wrist', True) and depth_img_r_raw is not None:
+                        depth_img_r = decode_depth_image(depth_img_r_raw)
+                        depth_imgs_processed['right_wrist'] = depth_img_r
+                        
+                        if config.depth_save_debug_images:
+                            depth_img_r_normalized = depth_to_rgb_uint8(
+                                depth_img_r,
+                                min_val=config.depth_range_min,
+                                max_val=config.depth_range_max,
+                                cmap_name=config.depth_colormap
+                            )
+                            cv2.imwrite(f"{current_path}/depth_img_r_{count}.png", depth_img_r_normalized)
 
                 # Save individual images if video recording is enabled
                 if enable_video_recording:
@@ -304,6 +439,11 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 model_input = input_processor.process(
                     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
                 )
+                # TODO: If model requires depth images, modify VLAInputProcessor.process() to accept depth_imgs_processed
+                # model_input = input_processor.process(
+                #     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg,
+                #     depth_images=depth_imgs_processed if config.depth_images_enabled else None
+                # )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
                 # if cfg.with_proprio:
                 #     action = policy.step(img_h, img_l, img_r, lang, state)

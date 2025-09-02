@@ -16,6 +16,7 @@ from collections import deque
 import threading
 
 import numpy as np
+import cv2
 
 QOS_PROFILE_LATEST = QoSProfile(
     history=QoSHistoryPolicy.KEEP_LAST,
@@ -60,6 +61,27 @@ class SimROSNode(Node):
             self.callback_rgb_image_right_wrist,
             1,
         )
+        
+        self.sub_depth_img_head = self.create_subscription(
+            CompressedImage,
+            "sim/head_depth_img",
+            self.callback_depth_image_head,
+            1,
+        )
+        
+        self.sub_depth_img_left_wrist = self.create_subscription(
+            CompressedImage,
+            "sim/left_wrist_depth_img",
+            self.callback_depth_image_left_wrist,
+            1,
+        )
+        
+        self.sub_depth_img_right_wrist = self.create_subscription(
+            CompressedImage,
+            "sim/right_wrist_depth_img",
+            self.callback_depth_image_right_wrist,
+            1,
+        )
 
         self.sub_js = self.create_subscription(
             JointState,
@@ -74,6 +96,10 @@ class SimROSNode(Node):
         self.lock_img_head = threading.Lock()
         self.lock_img_left_wrist = threading.Lock()
         self.lock_img_right_wrist = threading.Lock()
+        
+        self.lock_depth_img_head = threading.Lock()
+        self.lock_depth_img_left_wrist = threading.Lock()
+        self.lock_depth_img_right_wrist = threading.Lock()
 
         self.message_buffer = deque(maxlen=30)
         self.lock_joint_state = threading.Lock()
@@ -88,6 +114,10 @@ class SimROSNode(Node):
         self.img_head = None
         self.img_left_wrist = None
         self.img_right_wrist = None
+        
+        self.depth_img_head = None
+        self.depth_img_left_wrist = None
+        self.depth_img_right_wrist = None
 
     def callback_rgb_image_head(self, msg):
         # print(msg.header)
@@ -103,7 +133,23 @@ class SimROSNode(Node):
         # print(msg.header)
         with self.lock_img_right_wrist:
             self.img_right_wrist = msg
-
+            
+    def callback_depth_image_head(self, msg: CompressedImage):
+        # print(msg.header)
+        with self.lock_depth_img_head:
+            self.depth_img_head = msg
+            
+            
+    def callback_depth_image_left_wrist(self, msg):
+        # print(msg.header)
+        with self.lock_depth_img_left_wrist:
+            self.depth_img_left_wrist = msg
+            
+    def callback_depth_image_right_wrist(self, msg):
+        # print(msg.header)
+        with self.lock_depth_img_right_wrist:
+            self.depth_img_right_wrist = msg
+        
     def get_img_head(self):
         with self.lock_img_head:
             return self.img_head
@@ -115,6 +161,18 @@ class SimROSNode(Node):
     def get_img_right_wrist(self):
         with self.lock_img_right_wrist:
             return self.img_right_wrist
+        
+    def get_depth_img_head(self):
+        with self.lock_depth_img_head:
+            return self.depth_img_head
+        
+    def get_depth_img_left_wrist(self):
+        with self.lock_depth_img_left_wrist:
+            return self.depth_img_left_wrist
+        
+    def get_depth_img_right_wrist(self):
+        with self.lock_depth_img_right_wrist:
+            return self.depth_img_right_wrist
 
     def publish_joint_command(self, action):
 
