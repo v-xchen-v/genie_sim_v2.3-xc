@@ -15,8 +15,8 @@ image_processing:
     save_debug_images: false  # Save depth images to disk for debugging
     colormap: "turbo"  # Colormap for depth visualization: "turbo", "viridis", "plasma", etc.
     depth_range:
-      min_val: 0.1  # Minimum depth value in meters for normalization
-      max_val: 3.0  # Maximum depth value in meters for normalization
+      min_val: 0.256  # Minimum depth value in meters for normalization
+      max_val: 1.024  # Maximum depth value in meters for normalization
     
     # Which depth cameras to use (when enabled=true)
     cameras:
