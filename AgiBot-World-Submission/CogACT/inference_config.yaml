@@ -61,12 +61,12 @@ task_execution:
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
-    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
-    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    iros_make_a_sandwich: [0, 1, 2, 3]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
   # Gripper configuration
   gripper_config:
@@ -116,6 +116,10 @@ task_execution:
           frames_16: 3
           frames_8: 0
           frames_4: 0
+        iros_pickup_items_from_the_freezer:
+          frames_16: 3
+
+
     
     # # Gripper signal filter parameters
     # signal_filter:
@@ -140,6 +144,8 @@ task_execution:
     iros_clear_table_in_the_restaurant:
       pickup_substep: 2
       place_substep: 1
+    iros_open_drawer_and_store_items: 1
+    iros_pickup_items_from_the_freezer: 1
     default: 2
 
   # Inverse Kinematics configuration
@@ -179,7 +185,7 @@ task_progression:
     iros_clear_the_countertop_waste: 6
     iros_clear_table_in_the_restaurant: 10
     iros_heat_the_food_in_the_microwave: 40
-    iros_open_drawer_and_store_items: 32
+    iros_open_drawer_and_store_items: 48
     iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
     iros_pickup_items_from_the_freezer: 24
     iros_make_a_sandwich: 12
@@ -188,11 +194,13 @@ task_progression:
   max_inference_counters:
     iros_pack_in_the_supermarket: 20
     iros_clear_table_in_the_restaurant: 40  # 1-9 steps
-    iros_heat_the_food_in_the_microwave: 40
+    iros_heat_the_food_in_the_microwave: 120
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps
     iros_clear_the_countertop_waste: 80  # 1-9 steps
     iros_restock_supermarket_items: 20
+    iros_stamp_the_seal: 40
+    iros_make_a_sandwich: 40
   
   # Default progression strategy for each task
   task_progression_strategies:

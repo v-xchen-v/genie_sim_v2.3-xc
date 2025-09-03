@@ -246,7 +246,11 @@ class EEtoJointProcessor:
             # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
-            gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
+            if task_name == "iros_pickup_items_from_the_freezer":
+                gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+            else:
+                # maybe wa here, need to fix later more
+                gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
