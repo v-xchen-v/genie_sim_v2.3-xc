@@ -511,11 +511,12 @@ class EEtoJointProcessor:
                 # add each joint angle to avoid jump move of robot
                 joint_angles_list.append(joint_angles)
             
-                # Report the ik error on trans and rotation
-                T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
-                trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
-                rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
-                self.logger.info(f"IK iter: {ik_iter_i} trans err: {trans_err}, rot err (degree): {rot_err}")
+                # Report the ik error on trans and rotation (if enabled in config)
+                if self.config.get_ik_error_logging_enabled():
+                    T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
+                    trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
+                    rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
+                    self.logger.info(f"IK iter: {ik_iter_i} trans err: {trans_err}, rot err (degree): {rot_err}")
 
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],

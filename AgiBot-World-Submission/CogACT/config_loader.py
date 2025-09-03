@@ -235,6 +235,10 @@ class InferenceConfig:
             return ik_config[task_name]
         return ik_config['default']
     
+    def get_ik_error_logging_enabled(self) -> bool:
+        """Get whether IK error logging is enabled."""
+        return self.config['task_execution']['ik_config'].get('enable_error_logging', True)
+    
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION
     # =========================================================================
