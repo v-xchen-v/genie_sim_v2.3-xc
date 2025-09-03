@@ -246,7 +246,7 @@ class EEtoJointProcessor:
             # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
-            if task_name == "iros_pickup_items_from_the_freezer":
+            if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich":
                 gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
             else:
                 # maybe wa here, need to fix later more
