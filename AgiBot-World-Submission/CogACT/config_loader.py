@@ -228,6 +228,13 @@ class InferenceConfig:
         
         return interpolation_config.get(task_name, interpolation_config["default"])
     
+    def get_ik_iterations(self, task_name: str = None) -> int:
+        """Get number of IK iterations for solving end-effector poses."""
+        ik_config = self.config['task_execution']['ik_config']['iterations']
+        if task_name and task_name in ik_config:
+            return ik_config[task_name]
+        return ik_config['default']
+    
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION
     # =========================================================================

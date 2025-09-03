@@ -100,12 +100,12 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
-        num_ik_iterations = 1
+        n_ik_iterations = self.config.get_ik_iterations(task_name)
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
-            np.tile(left_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1)),
+            np.tile(left_gripper_joint.reshape(-1, 1), (n_ik_iterations, 1)),
             right_arm_joint_angles,
-            np.tile(right_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1))
+            np.tile(right_gripper_joint.reshape(-1, 1), (n_ik_iterations, 1))
         ], axis=1) #[num_steps,*ik_iterations, 16]
         return joint_cmd
     
@@ -503,19 +503,19 @@ class EEtoJointProcessor:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             # iterative calling the solver, to make it more accurate
-            n_ik_iterations = 1
-            for _ in range(n_ik_iterations):
+            n_ik_iterations = self.config.get_ik_iterations(self.task_name)
+            for ik_iter_i in range(n_ik_iterations):
                 joint_angles = ik_solver.solve_from_pose(T_ee)
                 ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration
 
                 # add each joint angle to avoid jump move of robot
                 joint_angles_list.append(joint_angles)
             
-            # Report the ik error on trans and rotation
-            T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
-            trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
-            rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
-            # print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
+                # Report the ik error on trans and rotation
+                T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
+                trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
+                rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
+                self.logger.info(f"IK iter: {ik_iter_i} trans err: {trans_err}, rot err (degree): {rot_err}")
 
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],

@@ -53,7 +53,7 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps:
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Use first 24 steps
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8]  # Use first 10 steps
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     # iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_make_a_sandwich: [0, 1, 2, 3]
@@ -133,6 +133,15 @@ task_execution:
     iros_restock_supermarket_items: 1
     iros_pack_in_the_supermarket: 1
     default: 2
+
+  # Inverse Kinematics configuration
+  ik_config:
+    # Number of IK iterations for solving end-effector poses
+    iterations:
+      default: 1  # Default number of IK iterations
+      # Task-specific IK iteration overrides (if needed)
+      # iros_pack_moving_objects_from_conveyor: 3
+      # iros_restock_supermarket_items: 1
 
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
