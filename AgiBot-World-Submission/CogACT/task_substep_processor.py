@@ -138,7 +138,8 @@ def check_progress_based_advancement(task_substep_progress, task_name, substep_i
     Returns:
         bool: Whether substep should advance
     """
-    progress_threshold = 0.95  # High threshold for reliable progress signal
+    # progress_threshold = 0.95  # High threshold for reliable progress 
+    progress_threshold = config["progress_thresholds"].get(task_name, 0.95)
     max_inference_counter = config["max_inference_counters"].get(task_name, 40)
     
     progress_list = np.array(task_substep_progress[0])

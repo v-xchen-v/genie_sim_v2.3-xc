@@ -541,7 +541,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 logger.info(f"🔄 Executing steps: {execution_steps} for substep {curr_task_substep_index} of task '{task_name}'")
 
                 for step_index in execution_steps:
-                    num_ik_iterations = config.get_ik_iterations(task_name, curr_task_substep_index, total_substeps)
+                    num_ik_iterations = config.get_ik_iterations(task_name)
                     # delta_joint_angles = joint_cmd[(step_index+1)*num_ik_iterations-1] - act_raw.position
                     # print(f"Delta joint angles for step {step_index}: \n")
                     # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")

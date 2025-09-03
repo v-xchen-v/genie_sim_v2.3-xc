@@ -91,7 +91,7 @@ task_execution:
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
       iros_pack_in_the_supermarket:
-        larger_two_side: 1.65
+        larger_two_side: 1.7
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -178,7 +178,7 @@ task_progression:
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
-    iros_pack_in_the_supermarket: 40
+    iros_pack_in_the_supermarket: 48
     iros_heat_the_food_in_the_microwave: 40
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps
@@ -230,8 +230,8 @@ head_joint_configurations:
 policy:
   # API settings
   ip: "10.190.172.212"
-  # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
-  port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
+  port: 22020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
+  # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
