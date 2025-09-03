@@ -53,8 +53,8 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps: # works for 19xxx
-    # iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -64,7 +64,6 @@ task_execution:
       pickup_substep: [0, 4, 8, 12]  # Every 4th step for fast pickup
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
   # Gripper configuration
@@ -78,6 +77,7 @@ task_execution:
     strategy_per_task:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
+      iros_restock_supermarket_items: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
@@ -86,12 +86,12 @@ task_execution:
         larger_two_side: 1.714
       iros_pickup_items_from_the_freezer:
         larger_two_side: 2
-      # iros_restock_supermarket_items:
-      #   larger_one_side: 1.8
+      iros_restock_supermarket_items:
+        larger_two_side: 2.1
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
-      iros_pack_in_the_supermarket:
-        larger_two_side: 1.7
+      # iros_pack_in_the_supermarket:
+      #   larger_two_side: 1.7
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -109,10 +109,10 @@ task_execution:
           frames_16: 5
           frames_8: 0
           # frames_4: 1
-    #     iros_restock_supermarket_items:
-    #       frames_16: 7
-    #       frames_8: 3
-    #       frames_4: 1
+        iros_restock_supermarket_items:
+          frames_16: 3
+          frames_8: 0
+          frames_4: 0
     
     # # Gripper signal filter parameters
     # signal_filter:
@@ -145,7 +145,7 @@ task_execution:
       iros_clear_table_in_the_restaurant: 3
     
     # IK error logging configuration
-    enable_error_logging: true  # Enable/disable logging of IK translation and rotation errors
+    enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
 
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
@@ -154,7 +154,7 @@ task_progression:
   # Progress thresholds for substep advancement
   progress_thresholds:
     iros_pack_in_the_supermarket: 0.98
-    iros_restock_supermarket_items: 0.9
+    iros_restock_supermarket_items: 0.98
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.96
     iros_clear_table_in_the_restaurant: 0.6
@@ -185,6 +185,7 @@ task_progression:
     iros_open_drawer_and_store_items: 80  # 1-8 steps
     iros_clear_the_countertop_waste: 80  # 1-9 steps
     iros_clear_table_in_the_restaurant: 80  # 1-9 steps
+    iros_restock_supermarket_items: 20
   
   # Default progression strategy for each task
   task_progression_strategies:
