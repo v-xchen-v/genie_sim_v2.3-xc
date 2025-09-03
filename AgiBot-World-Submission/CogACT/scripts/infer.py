@@ -566,7 +566,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     # Convert delta joint angles to joint state message
                     for i in range(num_ik_iterations):
                         joint_arr = joint_cmd[step_index * num_ik_iterations + i]
-                        if task_name == "iros_pack_moving_objects_from_conveyor" or task_name == "iros_make_a_sandwich":
+                        if  task_name == "iros_make_a_sandwich": # task_name == "iros_pack_moving_objects_from_conveyor" or
                         #   or task_name == "iros_restock_supermarket_items" \
                             
                             # drop during lifting, more tight grasp is need

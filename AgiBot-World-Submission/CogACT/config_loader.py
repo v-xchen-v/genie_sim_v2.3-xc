@@ -218,7 +218,8 @@ class InferenceConfig:
 
         # Special case for conveyor task pickup
         # Handle special case for conveyor task
-        if task_name == "iros_pack_moving_objects_from_conveyor" and isinstance(interpolation_steps_config, dict):
+        if (task_name == "iros_pack_moving_objects_from_conveyor" or task_name == "iros_restock_supermarket_items") \
+            and isinstance(interpolation_steps_config, dict):
             if substep_index is not None and total_substeps is not None:
                 if substep_index % total_substeps == 0:  # Pickup substep
                     return interpolation_steps_config["pickup_substep"]
