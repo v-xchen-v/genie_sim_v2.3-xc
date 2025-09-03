@@ -88,7 +88,7 @@ task_execution:
       iros_pack_moving_objects_from_conveyor:
         larger_two_side: 2
       iros_pickup_items_from_the_freezer:
-        larger_two_side: 2
+        larger_two_side: 2 # maybe smaller is better, need to test
       iros_restock_supermarket_items:
         larger_two_side: 2.1
       # iros_make_a_sandwich:
@@ -117,7 +117,7 @@ task_execution:
           frames_8: 0
           frames_4: 0
         iros_pickup_items_from_the_freezer:
-          frames_16: 3
+          frames_16: 1
 
 
     
@@ -146,6 +146,7 @@ task_execution:
       place_substep: 1
     iros_open_drawer_and_store_items: 1
     iros_pickup_items_from_the_freezer: 1
+    iros_stamp_the_seal: 3 # slower to make sure stamp will not be kicked away
     default: 2
 
   # Inverse Kinematics configuration
