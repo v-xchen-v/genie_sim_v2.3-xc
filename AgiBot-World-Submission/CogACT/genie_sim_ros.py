@@ -101,7 +101,7 @@ class SimROSNode(Node):
         self.lock_depth_img_left_wrist = threading.Lock()
         self.lock_depth_img_right_wrist = threading.Lock()
 
-        self.message_buffer = deque(maxlen=30)
+        self.message_buffer = deque(maxlen=1)
         self.lock_joint_state = threading.Lock()
         self.obs_joint_state = JointState()
         self.cur_joint_state = JointState()

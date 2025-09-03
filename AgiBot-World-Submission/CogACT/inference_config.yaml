@@ -61,7 +61,8 @@ task_execution:
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
     iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
-      pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -83,7 +84,7 @@ task_execution:
     # Task-specific gripper ratios (overrides default)
     ratios_per_task:
       iros_pack_moving_objects_from_conveyor:
-        larger_two_side: 1.714
+        larger_two_side: 2
       iros_pickup_items_from_the_freezer:
         larger_two_side: 2
       iros_restock_supermarket_items:
@@ -175,7 +176,7 @@ task_progression:
     iros_clear_table_in_the_restaurant: 10
     iros_heat_the_food_in_the_microwave: 40
     iros_open_drawer_and_store_items: 32
-    iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
+    iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
     iros_pickup_items_from_the_freezer: 24
     iros_make_a_sandwich: 12
   
@@ -240,7 +241,7 @@ ros:
   # Task-specific loop rates (overrides default)
   task_loop_rates:
     # Example task-specific configurations:
-    iros_pack_moving_objects_from_conveyor: 4.0  # Higher rate for fast tasks
+    iros_pack_moving_objects_from_conveyor: 10.0  # Higher rate for fast tasks
     # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
     
   # # ROS node configuration
