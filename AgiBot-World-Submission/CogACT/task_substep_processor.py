@@ -32,6 +32,7 @@ def get_full_instruction(task_name):
         # lang = "Pick up the grape juice on the table with the right arm.;Place the grape juice on the shelf where the grape juice is located with the right arm."
     elif task_name == "iros_clear_table_in_the_restaurant":
         lang = "Pick up the bowl on the table near the right arm with the right arm.;Place the bowl on the plate on the table with the right arm."
+        # lang = "Pick up the purple bowl on the table that is taller and farther from the view.;Place the purple bowl on the white plate on the table with the right arm."
     elif task_name == "iros_stamp_the_seal":
         lang = "Pick up the stamp from the ink pad on the table with the right arm.;Stamp the document on the table with the stamp in the right arm.;Place the stamp into the ink pad on the table with the right arm."
     elif task_name == "iros_pack_in_the_supermarket":

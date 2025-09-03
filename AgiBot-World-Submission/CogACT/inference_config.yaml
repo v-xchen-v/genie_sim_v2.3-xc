@@ -55,17 +55,18 @@ task_execution:
   task_execution_steps: # works for 19xxx
     iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_moving_objects_from_conveyor:
+      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
+      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
     iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pack_moving_objects_from_conveyor:
-      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
-      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
-      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
   # Gripper configuration
   gripper_config:
@@ -79,6 +80,7 @@ task_execution:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
       iros_restock_supermarket_items: "larger_two_side"
+      iros_clear_table_in_the_restaurant: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
@@ -135,6 +137,9 @@ task_execution:
       pickup_substep: 1
       place_substep: 2
     iros_pack_in_the_supermarket: 1
+    iros_clear_table_in_the_restaurant:
+      pickup_substep: 2
+      place_substep: 1
     default: 2
 
   # Inverse Kinematics configuration
@@ -145,7 +150,7 @@ task_execution:
       # Task-specific IK iteration overrides (if needed)
       # iros_pack_moving_objects_from_conveyor: 3
       iros_restock_supermarket_items: 1
-      iros_clear_table_in_the_restaurant: 3
+      iros_clear_table_in_the_restaurant: 1
     
     # IK error logging configuration
     enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
@@ -160,12 +165,11 @@ task_progression:
     iros_restock_supermarket_items: 0.97
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.96
-    iros_clear_table_in_the_restaurant: 0.6
-    iros_heat_the_food_in_the_microwave: 0.6
+    iros_clear_table_in_the_restaurant: 0.97
+    iros_heat_the_food_in_the_microwave: 0.96
     iros_open_drawer_and_store_items: 0.97
-    iros_pack_moving_objects_from_conveyor: 0.4
     iros_pickup_items_from_the_freezer: 0.95
-    iros_make_a_sandwich: 0.9
+    iros_make_a_sandwich: 0.96
   
   # Minimum inference counters before advancing
   min_inference_counters:
@@ -183,11 +187,11 @@ task_progression:
   # Maximum inference counters (for timeout)
   max_inference_counters:
     iros_pack_in_the_supermarket: 20
+    iros_clear_table_in_the_restaurant: 40  # 1-9 steps
     iros_heat_the_food_in_the_microwave: 40
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps
     iros_clear_the_countertop_waste: 80  # 1-9 steps
-    iros_clear_table_in_the_restaurant: 80  # 1-9 steps
     iros_restock_supermarket_items: 20
   
   # Default progression strategy for each task
