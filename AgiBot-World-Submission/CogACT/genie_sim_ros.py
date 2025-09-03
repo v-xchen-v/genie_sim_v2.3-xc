@@ -27,7 +27,7 @@ QOS_PROFILE_LATEST = QoSProfile(
 
 
 class SimROSNode(Node):
-    def __init__(self, node_name="univla_node"):
+    def __init__(self, node_name="univla_node", loop_rate=4.0):
         super().__init__(
             node_name,
             parameter_overrides=[Parameter("use_sim_time", Parameter.Type.BOOL, True)],
@@ -109,7 +109,7 @@ class SimROSNode(Node):
         # loop
         # self.loop_rate = self.create_rate(2.0)# loop
         # self.loop_rate = self.create_rate(4.0)
-        self.loop_rate = self.create_rate(4.0)
+        self.loop_rate = self.create_rate(loop_rate)
 
         self.img_head = None
         self.img_left_wrist = None

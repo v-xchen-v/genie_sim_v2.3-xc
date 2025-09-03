@@ -231,7 +231,14 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     
     rclpy.init()
     current_path = os.getcwd()
-    sim_ros_node = SimROSNode()
+    
+    # Get ROS configuration from config
+    ros_loop_rate = config.get_task_ros_loop_rate(task_name)
+    
+    # Initialize SimROSNode with configuration
+    sim_ros_node = SimROSNode(
+        loop_rate=ros_loop_rate,
+    )
     spin_thread = threading.Thread(target=rclpy.spin, args=(sim_ros_node,))
     spin_thread.start()
     
@@ -260,6 +267,12 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         logger.info(f"📋 Configuration copied to: {config_dest_path}")
     except Exception as e:
         logger.warning(f"⚠️ Failed to copy configuration file: {e}")
+    
+    # Log ROS configuration
+    logger.info(f"🤖 ROS Configuration:")
+    logger.info(f"   └─ Loop rate: {ros_loop_rate} Hz")
+    if ros_loop_rate != config.ros_loop_rate:
+        logger.info(f"   └─ Using task-specific loop rate (default: {config.ros_loop_rate} Hz)")
     
     # Save configuration summary as JSON
     config_summary_path = os.path.join(task_log_dir, 'inference_config_summary.json')

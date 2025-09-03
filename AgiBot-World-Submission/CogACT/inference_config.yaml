@@ -228,6 +228,23 @@ head_joint_configurations:
     idx12_head_joint2: 0.43634
 
 # =========================================================================
+# ROS CONFIGURATION
+# =========================================================================
+ros:
+  # ROS node loop rate configuration (Hz)
+  loop_rate: 4.0  # Default: 4.0 Hz
+  
+  # Task-specific loop rates (overrides default)
+  task_loop_rates:
+    # Example task-specific configurations:
+    iros_pack_moving_objects_from_conveyor: 3.0  # Higher rate for fast tasks
+    # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
+    
+  # # ROS node configuration
+  # node_name: "univla_node"  # Default ROS node name
+  # use_sim_time: true  # Use simulation time
+
+# =========================================================================
 # POLICY CONFIGURATION
 # =========================================================================
 policy:

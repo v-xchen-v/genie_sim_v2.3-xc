@@ -300,6 +300,38 @@ class InferenceConfig:
         """Get whether to enable video recording."""
         return self.config['logging'].get('enable_video_recording', False)
 
+    # =========================================================================
+    # ROS CONFIGURATION
+    # =========================================================================
+    
+    @property
+    def ros_loop_rate(self) -> float:
+        """Get ROS loop rate in Hz."""
+        return self.config['ros'].get('loop_rate', 4.0)
+    
+    def get_task_ros_loop_rate(self, task_name: str) -> float:
+        """
+        Get task-specific ROS loop rate.
+        
+        Args:
+            task_name: Name of the task
+            
+        Returns:
+            Loop rate in Hz for the specific task, or default if not configured
+        """
+        task_rates = self.config['ros'].get('task_loop_rates', {})
+        return task_rates.get(task_name, self.ros_loop_rate)
+    
+    # @property
+    # def ros_node_name(self) -> str:
+    #     """Get ROS node name."""
+    #     return self.config['ros'].get('node_name', 'univla_node')
+    
+    # @property
+    # def ros_use_sim_time(self) -> bool:
+    #     """Get whether to use simulation time."""
+    #     return self.config['ros'].get('use_sim_time', True)
+
     # @property
     # def default_log_dir(self) -> str:
     #     """Get default log directory."""
