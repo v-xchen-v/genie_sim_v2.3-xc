@@ -29,4 +29,4 @@ checkpoints
 
 source/geniesim/app/robot_cfg/*_recording.json
 AgiBot-World-Submission/CogACT/video_recordings/*
-
+AgiBot-World-Submission/CogACT/inference_logs/*

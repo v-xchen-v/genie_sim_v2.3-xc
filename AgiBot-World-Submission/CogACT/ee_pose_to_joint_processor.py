@@ -19,7 +19,7 @@ class EEtoJointProcessor:
     Uses urdfpy FK + relax IK.
     """
     ### ------------Public API------------ ###
-    def __init__(self):
+    def __init__(self, logger: Optional[Any] = None):
         # Load configuration
         self.config = get_config()
         
@@ -52,6 +52,8 @@ class EEtoJointProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
+
+        self.logger = logger
 
         
     
@@ -98,12 +100,12 @@ class EEtoJointProcessor:
         #     right_gripper_joint.reshape(-1, 1), 
         # ], axis=1)  # [num_steps, 16]
         
-        num_ik_iterations = 1
+        n_ik_iterations = self.config.get_ik_iterations(task_name)
         joint_cmd = np.concatenate([
             left_arm_joint_angles,
-            np.tile(left_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1)),
+            np.tile(left_gripper_joint.reshape(-1, 1), (n_ik_iterations, 1)),
             right_arm_joint_angles,
-            np.tile(right_gripper_joint.reshape(-1, 1), (num_ik_iterations, 1))
+            np.tile(right_gripper_joint.reshape(-1, 1), (n_ik_iterations, 1))
         ], axis=1) #[num_steps,*ik_iterations, 16]
         return joint_cmd
     
@@ -167,7 +169,15 @@ class EEtoJointProcessor:
             Adjusted gripper values array [num_steps, 1]
         """
         if n_frames_forward < 0:
-            raise ValueError("n_frames_forward must be non-negative.")
+            if gripper_values.shape[0] > abs(n_frames_forward):
+                # Shift gripper values backward by n frames
+                adjusted_values = gripper_values[:n_frames_forward]
+                # Fill the beginning frames with the first value
+                adjusted_values = np.concatenate([
+                    np.full((abs(n_frames_forward), 1), adjusted_values[0]),
+                    adjusted_values
+                ])
+                return adjusted_values
         
         if n_frames_forward == 0:
             return gripper_values
@@ -198,22 +208,23 @@ class EEtoJointProcessor:
         
         gripper_act_value = self._act_gripper(arm, vla_act_dict) # [num_steps, 1]
         # print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
-        
-        # Apply timing adjustment to account for gripper closing delay
-        if gripper_act_value.shape[0] == 16:
-            n_frames_forward = 7
-        elif gripper_act_value.shape[0] == 8:
-            n_frames_forward = 3
-        elif gripper_act_value.shape[0] == 4:
-            n_frames_forward = 1
-        else:
-            n_frames_forward = 0
 
-        task_names = ["iros_pack_in_the_supermarket", "iros_restock_supermarket_items"]
-        if task_name not in task_names:
-            n_frames_forward = 0
+        n_frames_forward = self.config.get_gripper_timing_adjustment(task_name, sequence_length=gripper_act_value.shape[0])
+        # # Apply timing adjustment to account for gripper closing delay
+        # if gripper_act_value.shape[0] == 16:
+        #     n_frames_forward = 7
+        # elif gripper_act_value.shape[0] == 8:
+        #     n_frames_forward = 3
+        # elif gripper_act_value.shape[0] == 4:
+        #     n_frames_forward = 1
+        # else:
+        #     n_frames_forward = 0
 
-        print(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
+        # task_names = ["iros_pack_in_the_supermarket", "iros_restock_supermarket_items"]
+        # if task_name not in task_names:
+        #     n_frames_forward = 0
+
+        self.logger.info(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
 
         gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
 
@@ -229,12 +240,17 @@ class EEtoJointProcessor:
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
         elif gripper_strategy == "larger_two_side":
             # Strategy 2: New - larger on both sides around center
-            gripper_upper = 0.7853981633974483  # 45 degrees in radians
+            # gripper_upper = 0.7853981633974483  # 45 degrees in radians
+            gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
             center = gripper_upper/2.0  # Center point (0.39269908169872414)
             # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
-            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+            if task_name == "iros_pickup_items_from_the_freezer":
+                gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+            else:
+                # maybe wa here, need to fix later more
+                gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
@@ -491,19 +507,20 @@ class EEtoJointProcessor:
                 ik_solver.set_current_state(self.last_right_arm_joint_angles)
                 
             # iterative calling the solver, to make it more accurate
-            n_ik_iterations = 1
-            for _ in range(n_ik_iterations):
+            n_ik_iterations = self.config.get_ik_iterations(self.task_name)
+            for ik_iter_i in range(n_ik_iterations):
                 joint_angles = ik_solver.solve_from_pose(T_ee)
                 ik_solver.set_current_state(joint_angles)  # update the current state for the next iteration
 
                 # add each joint angle to avoid jump move of robot
                 joint_angles_list.append(joint_angles)
             
-            # Report the ik error on trans and rotation
-            T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
-            trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
-            rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
-            # print(f"IK trans err: {trans_err}, IK rot err: {rot_err}")
+                # Report the ik error on trans and rotation (if enabled in config)
+                if self.config.get_ik_error_logging_enabled():
+                    T_computed_ee = ik_solver.compute_fk(joint_angles)[0]  # [4x4] pose of the end-effector in arm base frame
+                    trans_err = T_computed_ee[:3, 3] - T_ee[:3, 3]  # Translation error
+                    rot_err = R.from_matrix(T_computed_ee[:3, :3]).as_euler('xyz', degrees=True) - R.from_matrix(T_ee[:3, :3]).as_euler('xyz', degrees=True)
+                    self.logger.info(f"IK iter: {ik_iter_i} trans err: {trans_err}, rot err (degree): {rot_err}")
 
             # ik_solver.update_target(
             #     pos=T_ee[:3, 3],

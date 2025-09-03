@@ -118,9 +118,6 @@ def redirect_print_to_logging(logger):
 
 # Load configuration
 config = get_config()
-# Initialize ee_to_joint_processor at module level
-ee_to_joint_processor = EEtoJointProcessor()
-input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
 
 # def get_instruction_splites(task_name, substep_index=0):
 #     full_instruction = get_instruction(task_name)
@@ -224,10 +221,24 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     """
     global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
     
+
+        # Get logger instance
+    logger = logging.getLogger()
+
+    # Initialize ee_to_joint_processor at module level
+    ee_to_joint_processor = EEtoJointProcessor(logger=logger)
+    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()
     current_path = os.getcwd()
-    sim_ros_node = SimROSNode()
+    
+    # Get ROS configuration from config
+    ros_loop_rate = config.get_task_ros_loop_rate(task_name)
+    
+    # Initialize SimROSNode with configuration
+    sim_ros_node = SimROSNode(
+        loop_rate=ros_loop_rate,
+    )
     spin_thread = threading.Thread(target=rclpy.spin, args=(sim_ros_node,))
     spin_thread.start()
     
@@ -245,8 +256,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         task_log_dir = _get_unique_log_dir(log_dir, task_name)
         log_file_path = setup_logging(task_log_dir, task_name, enable_file_logging)
     
-    # Get logger instance
-    logger = logging.getLogger()
+
     
     
     # Copy configuration file to task directory for reproducibility
@@ -257,6 +267,12 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         logger.info(f"📋 Configuration copied to: {config_dest_path}")
     except Exception as e:
         logger.warning(f"⚠️ Failed to copy configuration file: {e}")
+    
+    # Log ROS configuration
+    logger.info(f"🤖 ROS Configuration:")
+    logger.info(f"   └─ Loop rate: {ros_loop_rate} Hz")
+    if ros_loop_rate != config.ros_loop_rate:
+        logger.info(f"   └─ Using task-specific loop rate (default: {config.ros_loop_rate} Hz)")
     
     # Save configuration summary as JSON
     config_summary_path = os.path.join(task_log_dir, 'inference_config_summary.json')
@@ -538,8 +554,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 logger.info(f"🔄 Executing steps: {execution_steps} for substep {curr_task_substep_index} of task '{task_name}'")
 
                 for step_index in execution_steps:
-                    num_ik_iterations = 1
-                    delta_joint_angles = joint_cmd[(step_index+1)*num_ik_iterations-1] - act_raw.position
+                    num_ik_iterations = config.get_ik_iterations(task_name)
+                    # delta_joint_angles = joint_cmd[(step_index+1)*num_ik_iterations-1] - act_raw.position
                     # print(f"Delta joint angles for step {step_index}: \n")
                     # print(f"Delta left arm joint angles: {delta_joint_angles[:7]}\n")
                     # print(f"Delta right arm joint angles: {delta_joint_angles[8:15]}\n")
@@ -550,14 +566,15 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     # Convert delta joint angles to joint state message
                     for i in range(num_ik_iterations):
                         joint_arr = joint_cmd[step_index * num_ik_iterations + i]
-                        if task_name == "iros_pack_moving_objects_from_conveyor" or task_name == "iros_restock_supermarket_items" \
-                            or task_name == "iros_make_a_sandwich":
+                        if  task_name == "iros_make_a_sandwich": # task_name == "iros_pack_moving_objects_from_conveyor" or
+                        #   or task_name == "iros_restock_supermarket_items" \
+                            
                             # drop during lifting, more tight grasp is need
                             joint_arr[7] *= 1.5
                             joint_arr[15] *= 1.5
-                        if task_name == "iros_restock_supermarket_items":
-                            joint_arr[7] *= 1.7
-                            joint_arr[15] *= 1.7
+                        # if task_name == "iros_restock_supermarket_items":
+                        #     joint_arr[7] *= 1.7
+                        #     joint_arr[15] *= 1.7
 
                         # Interpolate between current joint positions and target joint positions
                         act_raw = sim_ros_node.get_joint_state()
@@ -567,15 +584,17 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
-                        if task_name == "iros_clear_countertop_waste" or \
-                            (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
-                            or task_name == "iros_make_a_sandwich" \
-                            or task_name == "iros_restock_supermarket_items" :
-                            # or task_name =="iros_clear_table_in_the_restaurant":
-                            num_steps = 1
-                        else:
-                            num_steps = 2
-                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_steps)
+                        # if task_name == "iros_clear_countertop_waste" or \
+                        #     (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
+                        #     or task_name == "iros_make_a_sandwich" \
+                        #     or task_name == "iros_restock_supermarket_items" :
+                        #     # or task_name =="iros_clear_table_in_the_restaurant":
+                        #     num_steps = 1
+                        # else:
+                        #     num_steps = 2
+                        num_interpolation_steps = config.get_interpolation_steps(task_name, curr_task_substep_index, total_substeps)
+                        logger.info(f"Interpolating to target joints over {num_interpolation_steps} steps")
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_interpolation_steps)
                         # Send interpolated joint commands
                         for interp_joints in interpolated_steps:
                             sim_ros_node.publish_joint_command(interp_joints)

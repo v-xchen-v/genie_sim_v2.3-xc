@@ -179,24 +179,24 @@ class InferenceConfig:
         # Fall back to default ratio
         return gripper_config['default_ratios'][strategy]
     
-    # def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
-    #     """Get gripper timing adjustment (frames to shift forward) for a task."""
-    #     gripper_config = self.get_gripper_config()
-    #     timing_config = gripper_config['timing_adjustment']
+    def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
+        """Get gripper timing adjustment (frames to shift forward) for a task."""
+        gripper_config = self.get_gripper_config()
+        timing_config = gripper_config['timing_adjustment']
         
-    #     # Check task-specific timing first
-    #     task_timing = timing_config.get('task_specific', {}).get(task_name, {})
+        # Check task-specific timing first
+        task_timing = timing_config.get('task_specific', {}).get(task_name, {})
         
-    #     # Map sequence length to frame key
-    #     frame_key = f"frames_{sequence_length}"
+        # Map sequence length to frame key
+        frame_key = f"frames_{sequence_length}"
         
-    #     # Get task-specific timing or fall back to default
-    #     if frame_key in task_timing:
-    #         return task_timing[frame_key]
-    #     elif frame_key in timing_config:
-    #         return timing_config[frame_key]
-    #     else:
-    #         return timing_config['default']
+        # Get task-specific timing or fall back to default
+        if frame_key in task_timing:
+            return task_timing[frame_key]
+        elif frame_key in timing_config:
+            return timing_config[frame_key]
+        else:
+            return timing_config['default']
     
     # def get_gripper_signal_filter_params(self) -> Dict[str, Any]:
     #     """Get gripper signal filter parameters."""
@@ -208,17 +208,38 @@ class InferenceConfig:
     #     multipliers = self.config['task_execution']['gripper_force_multipliers']
     #     return multipliers.get(task_name, {"left": 1.0, "right": 1.0})
     
-    # def get_interpolation_steps(self, task_name: str, substep_index: int = None, total_substeps: int = None) -> int:
-    #     """Get number of interpolation steps for a task."""
-    #     interpolation_config = self.config['task_execution']['interpolation_steps']
+    def get_interpolation_steps(self, task_name: str, substep_index: int = None, total_substeps: int = None) -> int:
+        """Get number of interpolation steps for a task."""
+        interpolation_config = self.config['task_execution']['interpolation_steps']
+        if task_name not in interpolation_config:
+            return interpolation_config["default"]
+
+        interpolation_steps_config = interpolation_config[task_name]
+
+        # Special case for conveyor task pickup
+        # Handle special case for conveyor task
+        if (task_name == "iros_pack_moving_objects_from_conveyor" or task_name == "iros_restock_supermarket_items" \
+            or task_name == "iros_clear_table_in_the_restaurant") \
+            and isinstance(interpolation_steps_config, dict):
+            if substep_index is not None and total_substeps is not None:
+                if substep_index % total_substeps == 0:  # Pickup substep
+                    return interpolation_steps_config["pickup_substep"]
+                else:  # Place substep
+                    return interpolation_steps_config["place_substep"]
+            return self.config['task_execution']['default_execution_steps']
         
-    #     # Special case for conveyor task pickup
-    #     if (task_name == "iros_pack_moving_objects_from_conveyor" and 
-    #         substep_index is not None and total_substeps is not None and 
-    #         substep_index % total_substeps == 0):
-    #         return 1
-        
-    #     return interpolation_config.get(task_name, interpolation_config["default"])
+        return interpolation_config.get(task_name, interpolation_config["default"])
+    
+    def get_ik_iterations(self, task_name: str = None) -> int:
+        """Get number of IK iterations for solving end-effector poses."""
+        ik_config = self.config['task_execution']['ik_config']['iterations']
+        if task_name and task_name in ik_config:
+            return ik_config[task_name]
+        return ik_config['default']
+    
+    def get_ik_error_logging_enabled(self) -> bool:
+        """Get whether IK error logging is enabled."""
+        return self.config['task_execution']['ik_config'].get('enable_error_logging', True)
     
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION
@@ -280,6 +301,38 @@ class InferenceConfig:
     def enable_video_recording(self) -> bool:
         """Get whether to enable video recording."""
         return self.config['logging'].get('enable_video_recording', False)
+
+    # =========================================================================
+    # ROS CONFIGURATION
+    # =========================================================================
+    
+    @property
+    def ros_loop_rate(self) -> float:
+        """Get ROS loop rate in Hz."""
+        return self.config['ros'].get('loop_rate', 4.0)
+    
+    def get_task_ros_loop_rate(self, task_name: str) -> float:
+        """
+        Get task-specific ROS loop rate.
+        
+        Args:
+            task_name: Name of the task
+            
+        Returns:
+            Loop rate in Hz for the specific task, or default if not configured
+        """
+        task_rates = self.config['ros'].get('task_loop_rates', {})
+        return task_rates.get(task_name, self.ros_loop_rate)
+    
+    # @property
+    # def ros_node_name(self) -> str:
+    #     """Get ROS node name."""
+    #     return self.config['ros'].get('node_name', 'univla_node')
+    
+    # @property
+    # def ros_use_sim_time(self) -> bool:
+    #     """Get whether to use simulation time."""
+    #     return self.config['ros'].get('use_sim_time', True)
 
     # @property
     # def default_log_dir(self) -> str:

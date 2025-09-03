@@ -52,20 +52,22 @@ task_execution:
   default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   
   # Task-specific execution steps
-  task_execution_steps:
-    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
-    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pack_moving_objects_from_conveyor:
-      pickup_substep: [0, 4, 8, 12]  # Every 4th step for fast pickup
-      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
-    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  task_execution_steps: # works for 19xxx
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-  
+    iros_pack_moving_objects_from_conveyor:
+      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
+      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    iros_make_a_sandwich: [0, 1, 2, 3]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+
   # Gripper configuration
   gripper_config:
     # Default gripper ratios for scaling
@@ -77,37 +79,47 @@ task_execution:
     strategy_per_task:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
+      iros_restock_supermarket_items: "larger_two_side"
+      iros_clear_table_in_the_restaurant: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
     ratios_per_task:
       iros_pack_moving_objects_from_conveyor:
-        larger_two_side: 1.714
-      iros_pickup_items_from_the_freezer:
         larger_two_side: 2
-      # iros_restock_supermarket_items:
-      #   larger_one_side: 1.8
+      iros_pickup_items_from_the_freezer:
+        larger_two_side: 2 # maybe smaller is better, need to test
+      iros_restock_supermarket_items:
+        larger_two_side: 2.1
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
+      # iros_pack_in_the_supermarket:
+      #   larger_two_side: 1.7
     
-    # # Gripper timing adjustment (frames to shift forward)
-    # timing_adjustment:
-    #   # Default timing adjustments based on action sequence length
-    #   frames_16: 7  # For 16-step sequences
-    #   frames_8: 3   # For 8-step sequences  
-    #   frames_4: 1   # For 4-step sequences
-    #   default: 0    # For other sequences
+    # Gripper timing adjustment (frames to shift forward)
+    timing_adjustment:
+      # Default timing adjustments based on action sequence length
+      frames_32: 0  # For 32-step sequences
+      frames_16: 0  # For 16-step sequences
+      frames_8: 0   # For 8-step sequences  
+      frames_4: 0   # For 4-step sequences
+      default: 0    # For other sequences
       
-    #   # Task-specific timing adjustments
-    #   task_specific:
-    #     iros_pack_in_the_supermarket: 
-    #       frames_16: 7
-    #       frames_8: 3
-    #       frames_4: 1
-    #     iros_restock_supermarket_items:
-    #       frames_16: 7
-    #       frames_8: 3
-    #       frames_4: 1
+      # Task-specific timing adjustments
+      task_specific:
+        iros_pack_in_the_supermarket: 
+          frames_32: 0
+          frames_16: 5
+          frames_8: 0
+          # frames_4: 1
+        iros_restock_supermarket_items:
+          frames_16: 3
+          frames_8: 0
+          frames_4: 0
+        iros_pickup_items_from_the_freezer:
+          frames_16: 1
+
+
     
     # # Gripper signal filter parameters
     # signal_filter:
@@ -118,13 +130,37 @@ task_execution:
     #   lookahead: 1
     #   monotone: null  # or 'closing'/'opening' for specific phases
   
-#   # Number of interpolation steps for different tasks
-#   interpolation_steps:
-#     iros_clear_countertop_waste: 1
-#     iros_pack_moving_objects_from_conveyor: 1  # For pickup substep
-#     iros_make_a_sandwich: 1
-#     iros_restock_supermarket_items: 1
-#     default: 2
+  # Number of interpolation steps for different tasks
+  interpolation_steps:
+    iros_clear_countertop_waste: 1
+    iros_pack_moving_objects_from_conveyor: 
+      pickup_substep: 1  # For pickup substep
+      place_substep: 2  # For place substep
+    iros_make_a_sandwich: 1
+    iros_restock_supermarket_items:
+      pickup_substep: 1
+      place_substep: 2
+    iros_pack_in_the_supermarket: 1
+    iros_clear_table_in_the_restaurant:
+      pickup_substep: 2
+      place_substep: 1
+    iros_open_drawer_and_store_items: 1
+    iros_pickup_items_from_the_freezer: 1
+    iros_stamp_the_seal: 3 # slower to make sure stamp will not be kicked away
+    default: 2
+
+  # Inverse Kinematics configuration
+  ik_config:
+    # Number of IK iterations for solving end-effector poses
+    iterations:
+      default: 1  # Default number of IK iterations
+      # Task-specific IK iteration overrides (if needed)
+      # iros_pack_moving_objects_from_conveyor: 3
+      iros_restock_supermarket_items: 1
+      iros_clear_table_in_the_restaurant: 1
+    
+    # IK error logging configuration
+    enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
 
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
@@ -132,16 +168,15 @@ task_execution:
 task_progression:
   # Progress thresholds for substep advancement
   progress_thresholds:
-    iros_pack_in_the_supermarket: 0.3
-    iros_restock_supermarket_items: 0.9
+    iros_pack_in_the_supermarket: 0.98
+    iros_restock_supermarket_items: 0.97
     iros_stamp_the_seal: 0.99
-    iros_clear_the_countertop_waste: 0.4
-    iros_clear_table_in_the_restaurant: 0.6
-    iros_heat_the_food_in_the_microwave: 0.6
+    iros_clear_the_countertop_waste: 0.96
+    iros_clear_table_in_the_restaurant: 0.97
+    iros_heat_the_food_in_the_microwave: 0.96
     iros_open_drawer_and_store_items: 0.97
-    iros_pack_moving_objects_from_conveyor: 0.4
     iros_pickup_items_from_the_freezer: 0.95
-    iros_make_a_sandwich: 0.9
+    iros_make_a_sandwich: 0.96
   
   # Minimum inference counters before advancing
   min_inference_counters:
@@ -151,17 +186,22 @@ task_progression:
     iros_clear_the_countertop_waste: 6
     iros_clear_table_in_the_restaurant: 10
     iros_heat_the_food_in_the_microwave: 40
-    iros_open_drawer_and_store_items: 32
-    iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
+    iros_open_drawer_and_store_items: 48
+    iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
     iros_pickup_items_from_the_freezer: 24
     iros_make_a_sandwich: 12
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
-    iros_pack_in_the_supermarket: 48
-    iros_heat_the_food_in_the_microwave: 40
+    iros_pack_in_the_supermarket: 20
+    iros_clear_table_in_the_restaurant: 40  # 1-9 steps
+    iros_heat_the_food_in_the_microwave: 120
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps
+    iros_clear_the_countertop_waste: 80  # 1-9 steps
+    iros_restock_supermarket_items: 20
+    iros_stamp_the_seal: 40
+    iros_make_a_sandwich: 40
   
   # Default progression strategy for each task
   task_progression_strategies:
@@ -205,18 +245,40 @@ head_joint_configurations:
     idx12_head_joint2: 0.43634
 
 # =========================================================================
+# ROS CONFIGURATION
+# =========================================================================
+ros:
+  # ROS node loop rate configuration (Hz)
+  loop_rate: 4.0  # Default: 4.0 Hz
+  
+  # Task-specific loop rates (overrides default)
+  task_loop_rates:
+    # Example task-specific configurations:
+    iros_pack_moving_objects_from_conveyor: 10.0  # Higher rate for fast tasks
+    # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
+    
+  # # ROS node configuration
+  # node_name: "univla_node"  # Default ROS node name
+  # use_sim_time: true  # Use simulation time
+
+# =========================================================================
 # POLICY CONFIGURATION
 # =========================================================================
 policy:
   # API settings
   ip: "10.190.172.212"
-  port: 19020  # Current: no aug, step~20k
+  port: 19015 # no aug, step 15k
+  # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
+  # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
   # 17040: no aug, step 40k
   # 18020: aug, step~20k
   # 19020: no aug, step~20k, use new sim data
+  # 19030: no aug, step~30k, new sim data
+  # 19040  # Current: no aug, step~30k, new sim dat
+  # 20020: no aug, step~20k, new sim data, batchsize=1k
 
 # # =========================================================================
 # # SIMULATION CONFIGURATION
