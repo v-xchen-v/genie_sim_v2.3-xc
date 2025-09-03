@@ -19,7 +19,7 @@ class EEtoJointProcessor:
     Uses urdfpy FK + relax IK.
     """
     ### ------------Public API------------ ###
-    def __init__(self):
+    def __init__(self, logger: Optional[Any] = None):
         # Load configuration
         self.config = get_config()
         
@@ -52,6 +52,8 @@ class EEtoJointProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
+
+        self.logger = logger
 
         
     
@@ -167,7 +169,15 @@ class EEtoJointProcessor:
             Adjusted gripper values array [num_steps, 1]
         """
         if n_frames_forward < 0:
-            raise ValueError("n_frames_forward must be non-negative.")
+            if gripper_values.shape[0] > abs(n_frames_forward):
+                # Shift gripper values backward by n frames
+                adjusted_values = gripper_values[:n_frames_forward]
+                # Fill the beginning frames with the first value
+                adjusted_values = np.concatenate([
+                    np.full((abs(n_frames_forward), 1), adjusted_values[0]),
+                    adjusted_values
+                ])
+                return adjusted_values
         
         if n_frames_forward == 0:
             return gripper_values
@@ -214,7 +224,7 @@ class EEtoJointProcessor:
         # if task_name not in task_names:
         #     n_frames_forward = 0
 
-        print(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
+        self.logger.info(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
 
         gripper_act_value = self._apply_gripper_timing_adjustment(gripper_act_value, n_frames_forward)
 
@@ -230,12 +240,13 @@ class EEtoJointProcessor:
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
         elif gripper_strategy == "larger_two_side":
             # Strategy 2: New - larger on both sides around center
-            gripper_upper = 0.7853981633974483  # 45 degrees in radians
+            # gripper_upper = 0.7853981633974483  # 45 degrees in radians
+            gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
             center = gripper_upper/2.0  # Center point (0.39269908169872414)
             # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
             # Map back to larger range around [0, 1]
-            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+            gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 

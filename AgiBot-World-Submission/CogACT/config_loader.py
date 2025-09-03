@@ -208,17 +208,25 @@ class InferenceConfig:
     #     multipliers = self.config['task_execution']['gripper_force_multipliers']
     #     return multipliers.get(task_name, {"left": 1.0, "right": 1.0})
     
-    # def get_interpolation_steps(self, task_name: str, substep_index: int = None, total_substeps: int = None) -> int:
-    #     """Get number of interpolation steps for a task."""
-    #     interpolation_config = self.config['task_execution']['interpolation_steps']
+    def get_interpolation_steps(self, task_name: str, substep_index: int = None, total_substeps: int = None) -> int:
+        """Get number of interpolation steps for a task."""
+        interpolation_config = self.config['task_execution']['interpolation_steps']
+        if task_name not in interpolation_config:
+            return interpolation_config["default"]
+
+        interpolation_steps_config = interpolation_config[task_name]
+
+        # Special case for conveyor task pickup
+        # Handle special case for conveyor task
+        if task_name == "iros_pack_moving_objects_from_conveyor" and isinstance(interpolation_steps_config, dict):
+            if substep_index is not None and total_substeps is not None:
+                if substep_index % total_substeps == 0:  # Pickup substep
+                    return interpolation_steps_config["pickup_substep"]
+                else:  # Place substep
+                    return interpolation_steps_config["place_substep"]
+            return self.config['task_execution']['default_execution_steps']
         
-    #     # Special case for conveyor task pickup
-    #     if (task_name == "iros_pack_moving_objects_from_conveyor" and 
-    #         substep_index is not None and total_substeps is not None and 
-    #         substep_index % total_substeps == 0):
-    #         return 1
-        
-    #     return interpolation_config.get(task_name, interpolation_config["default"])
+        return interpolation_config.get(task_name, interpolation_config["default"])
     
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION

@@ -53,10 +53,10 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps:
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Use first 24 steps
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     # iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]  # Use first 24 steps
-    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_make_a_sandwich: [0, 1, 2, 3]
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
     iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -90,6 +90,8 @@ task_execution:
       #   larger_one_side: 1.8
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
+      iros_pack_in_the_supermarket:
+        larger_two_side: 1.65
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -103,10 +105,10 @@ task_execution:
       # Task-specific timing adjustments
       task_specific:
         iros_pack_in_the_supermarket: 
-          frames_32: 9
-          frames_16: 7
-          frames_8: 3
-          frames_4: 1
+          frames_32: 0
+          # frames_16: 7
+          # frames_8: 3
+          # frames_4: 1
     #     iros_restock_supermarket_items:
     #       frames_16: 7
     #       frames_8: 3
@@ -121,13 +123,16 @@ task_execution:
     #   lookahead: 1
     #   monotone: null  # or 'closing'/'opening' for specific phases
   
-#   # Number of interpolation steps for different tasks
-#   interpolation_steps:
-#     iros_clear_countertop_waste: 1
-#     iros_pack_moving_objects_from_conveyor: 1  # For pickup substep
-#     iros_make_a_sandwich: 1
-#     iros_restock_supermarket_items: 1
-#     default: 2
+  # Number of interpolation steps for different tasks
+  interpolation_steps:
+    iros_clear_countertop_waste: 1
+    iros_pack_moving_objects_from_conveyor: 
+      pickup_substep: 1  # For pickup substep
+      place_substep: 2  # For place substep
+    iros_make_a_sandwich: 1
+    iros_restock_supermarket_items: 1
+    iros_pack_in_the_supermarket: 1
+    default: 2
 
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
@@ -135,7 +140,7 @@ task_execution:
 task_progression:
   # Progress thresholds for substep advancement
   progress_thresholds:
-    iros_pack_in_the_supermarket: 0.96
+    iros_pack_in_the_supermarket: 0.98
     iros_restock_supermarket_items: 0.9
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.4
@@ -161,7 +166,7 @@ task_progression:
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
-    iros_pack_in_the_supermarket: 48
+    iros_pack_in_the_supermarket: 40
     iros_heat_the_food_in_the_microwave: 40
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps

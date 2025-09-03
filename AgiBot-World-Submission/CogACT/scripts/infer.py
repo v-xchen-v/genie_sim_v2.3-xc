@@ -118,9 +118,6 @@ def redirect_print_to_logging(logger):
 
 # Load configuration
 config = get_config()
-# Initialize ee_to_joint_processor at module level
-ee_to_joint_processor = EEtoJointProcessor()
-input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
 
 # def get_instruction_splites(task_name, substep_index=0):
 #     full_instruction = get_instruction(task_name)
@@ -224,6 +221,13 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     """
     global video_writer_global, video_segment_counter_global, task_log_dir_global, task_name_global
     
+
+        # Get logger instance
+    logger = logging.getLogger()
+
+    # Initialize ee_to_joint_processor at module level
+    ee_to_joint_processor = EEtoJointProcessor(logger=logger)
+    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()
     current_path = os.getcwd()
@@ -245,8 +249,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         task_log_dir = _get_unique_log_dir(log_dir, task_name)
         log_file_path = setup_logging(task_log_dir, task_name, enable_file_logging)
     
-    # Get logger instance
-    logger = logging.getLogger()
+
     
     
     # Copy configuration file to task directory for reproducibility
@@ -567,15 +570,17 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                         current_joints = act_raw.position  # [16,]
                         target_joints = joint_arr          # [16,]
-                        if task_name == "iros_clear_countertop_waste" or \
-                            (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
-                            or task_name == "iros_make_a_sandwich" \
-                            or task_name == "iros_restock_supermarket_items" :
-                            # or task_name =="iros_clear_table_in_the_restaurant":
-                            num_steps = 1
-                        else:
-                            num_steps = 2
-                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_steps)
+                        # if task_name == "iros_clear_countertop_waste" or \
+                        #     (task_name == "iros_pack_moving_objects_from_conveyor" and curr_task_substep_index%total_substeps==0) \
+                        #     or task_name == "iros_make_a_sandwich" \
+                        #     or task_name == "iros_restock_supermarket_items" :
+                        #     # or task_name =="iros_clear_table_in_the_restaurant":
+                        #     num_steps = 1
+                        # else:
+                        #     num_steps = 2
+                        num_interpolation_steps = config.get_interpolation_steps(task_name, curr_task_substep_index, total_substeps)
+                        logger.info(f"Interpolating to target joints over {num_interpolation_steps} steps")
+                        interpolated_steps = interpolate_joints(current_joints, target_joints, num_steps=num_interpolation_steps)
                         # Send interpolated joint commands
                         for interp_joints in interpolated_steps:
                             sim_ros_node.publish_joint_command(interp_joints)
