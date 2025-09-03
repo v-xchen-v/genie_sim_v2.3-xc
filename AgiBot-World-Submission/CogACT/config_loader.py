@@ -179,24 +179,24 @@ class InferenceConfig:
         # Fall back to default ratio
         return gripper_config['default_ratios'][strategy]
     
-    # def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
-    #     """Get gripper timing adjustment (frames to shift forward) for a task."""
-    #     gripper_config = self.get_gripper_config()
-    #     timing_config = gripper_config['timing_adjustment']
+    def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
+        """Get gripper timing adjustment (frames to shift forward) for a task."""
+        gripper_config = self.get_gripper_config()
+        timing_config = gripper_config['timing_adjustment']
         
-    #     # Check task-specific timing first
-    #     task_timing = timing_config.get('task_specific', {}).get(task_name, {})
+        # Check task-specific timing first
+        task_timing = timing_config.get('task_specific', {}).get(task_name, {})
         
-    #     # Map sequence length to frame key
-    #     frame_key = f"frames_{sequence_length}"
+        # Map sequence length to frame key
+        frame_key = f"frames_{sequence_length}"
         
-    #     # Get task-specific timing or fall back to default
-    #     if frame_key in task_timing:
-    #         return task_timing[frame_key]
-    #     elif frame_key in timing_config:
-    #         return timing_config[frame_key]
-    #     else:
-    #         return timing_config['default']
+        # Get task-specific timing or fall back to default
+        if frame_key in task_timing:
+            return task_timing[frame_key]
+        elif frame_key in timing_config:
+            return timing_config[frame_key]
+        else:
+            return timing_config['default']
     
     # def get_gripper_signal_filter_params(self) -> Dict[str, Any]:
     #     """Get gripper signal filter parameters."""

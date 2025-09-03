@@ -54,7 +54,8 @@ task_execution:
   # Task-specific execution steps
   task_execution_steps:
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    # iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]  # Use first 24 steps
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
@@ -90,20 +91,22 @@ task_execution:
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
     
-    # # Gripper timing adjustment (frames to shift forward)
-    # timing_adjustment:
-    #   # Default timing adjustments based on action sequence length
-    #   frames_16: 7  # For 16-step sequences
-    #   frames_8: 3   # For 8-step sequences  
-    #   frames_4: 1   # For 4-step sequences
-    #   default: 0    # For other sequences
+    # Gripper timing adjustment (frames to shift forward)
+    timing_adjustment:
+      # Default timing adjustments based on action sequence length
+      frames_32: 0  # For 32-step sequences
+      frames_16: 0  # For 16-step sequences
+      frames_8: 0   # For 8-step sequences  
+      frames_4: 0   # For 4-step sequences
+      default: 0    # For other sequences
       
-    #   # Task-specific timing adjustments
-    #   task_specific:
-    #     iros_pack_in_the_supermarket: 
-    #       frames_16: 7
-    #       frames_8: 3
-    #       frames_4: 1
+      # Task-specific timing adjustments
+      task_specific:
+        iros_pack_in_the_supermarket: 
+          frames_32: 9
+          frames_16: 7
+          frames_8: 3
+          frames_4: 1
     #     iros_restock_supermarket_items:
     #       frames_16: 7
     #       frames_8: 3
@@ -132,7 +135,7 @@ task_execution:
 task_progression:
   # Progress thresholds for substep advancement
   progress_thresholds:
-    iros_pack_in_the_supermarket: 0.3
+    iros_pack_in_the_supermarket: 0.96
     iros_restock_supermarket_items: 0.9
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.4
@@ -210,13 +213,17 @@ head_joint_configurations:
 policy:
   # API settings
   ip: "10.190.172.212"
-  port: 19020  # Current: no aug, step~20k
+  # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
+  port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
   # 17040: no aug, step 40k
   # 18020: aug, step~20k
   # 19020: no aug, step~20k, use new sim data
+  # 19030: no aug, step~30k, new sim data
+  # 19040  # Current: no aug, step~30k, new sim dat
+  # 20020: no aug, step~20k, new sim data, batchsize=1k
 
 # # =========================================================================
 # # SIMULATION CONFIGURATION

@@ -198,20 +198,21 @@ class EEtoJointProcessor:
         
         gripper_act_value = self._act_gripper(arm, vla_act_dict) # [num_steps, 1]
         # print(f"gripper value shape: {gripper_joint.shape}, gripper value: {gripper_joint}")
-        
-        # Apply timing adjustment to account for gripper closing delay
-        if gripper_act_value.shape[0] == 16:
-            n_frames_forward = 7
-        elif gripper_act_value.shape[0] == 8:
-            n_frames_forward = 3
-        elif gripper_act_value.shape[0] == 4:
-            n_frames_forward = 1
-        else:
-            n_frames_forward = 0
 
-        task_names = ["iros_pack_in_the_supermarket", "iros_restock_supermarket_items"]
-        if task_name not in task_names:
-            n_frames_forward = 0
+        n_frames_forward = self.config.get_gripper_timing_adjustment(task_name, sequence_length=gripper_act_value.shape[0])
+        # # Apply timing adjustment to account for gripper closing delay
+        # if gripper_act_value.shape[0] == 16:
+        #     n_frames_forward = 7
+        # elif gripper_act_value.shape[0] == 8:
+        #     n_frames_forward = 3
+        # elif gripper_act_value.shape[0] == 4:
+        #     n_frames_forward = 1
+        # else:
+        #     n_frames_forward = 0
+
+        # task_names = ["iros_pack_in_the_supermarket", "iros_restock_supermarket_items"]
+        # if task_name not in task_names:
+        #     n_frames_forward = 0
 
         print(f"Shifting {arm} gripper values forward by {n_frames_forward} frames.")
 
