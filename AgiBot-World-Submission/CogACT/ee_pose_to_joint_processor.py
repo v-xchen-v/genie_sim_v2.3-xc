@@ -559,7 +559,7 @@ class EEtoJointProcessor:
         """
         # Transform from robot base to arm base coordinates
         T_robotbase_to_armbase = self.coord_transformer.relative_transform("base_link", "arm_base_link")
-        T_ee_pose_arm_base_frame = T_robotbase_to_armbase @ pose_4x4
+        T_ee_pose_arm_base_frame = np.linalg.inv(T_robotbase_to_armbase) @ pose_4x4
         
         return T_ee_pose_arm_base_frame
 
