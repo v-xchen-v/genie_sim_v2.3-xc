@@ -225,9 +225,13 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         # Get logger instance
     logger = logging.getLogger()
 
-    # Initialize ee_to_joint_processor at module level
-    ee_to_joint_processor = EEtoJointProcessor(logger=logger)
-    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
+    # Get coordinate mode from policy configuration
+    coord_mode = config.get_coordinate_mode()
+    logger.info(f"🔧 Using coordinate mode: {coord_mode}")
+
+    # Initialize ee_to_joint_processor at module level with coordinate mode
+    ee_to_joint_processor = EEtoJointProcessor(logger=logger, coord_mode=coord_mode)
+    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()
     current_path = os.getcwd()
