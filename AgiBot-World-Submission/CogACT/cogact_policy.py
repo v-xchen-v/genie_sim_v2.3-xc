@@ -4,6 +4,7 @@ import io
 import json
 import requests
 import time
+import numpy as np
 
 class CogActAPIPolicy:
     def __init__(self, ip_address, port):
@@ -64,25 +65,39 @@ class CogActAPIPolicy:
         start_time = time.time()
         files = []
         for i, img in enumerate(image_list):
+            # print(f"Image {i} type: {type(img)}")
             if img is not None:
-                img_bytes = io.BytesIO()
-                if image_format == "JPEG":
-                    img.save(img_bytes, format="JPEG")
-                elif image_format == "PNG":
-                    img.save(img_bytes, format="PNG")
-                else:
-                    raise ValueError("Unsupported image format. Use 'JPEG' or 'PNG'.")
-                img_bytes.seek(0)
-                files.append(
-                    (
-                        f"image_{i}",
+                if isinstance(img, Image.Image):
+                    img_bytes = io.BytesIO()
+                    if image_format == "JPEG":
+                        img.save(img_bytes, format="JPEG")
+                    elif image_format == "PNG":
+                        img.save(img_bytes, format="PNG")
+                    else:
+                        raise ValueError("Unsupported image format. Use 'JPEG' or 'PNG'.")
+                    img_bytes.seek(0)
+                    files.append(
                         (
-                            (f"image_{i}.png", img_bytes, "image/png")
-                            if image_format == "PNG"
-                            else (f"image_{i}.jpg", img_bytes, "image/jpeg")
-                        ),
+                            f"image_{i}",
+                            (
+                                (f"image_{i}.png", img_bytes, "image/png")
+                                if image_format == "PNG"
+                                else (f"image_{i}.jpg", img_bytes, "image/jpeg")
+                            ),
+                        )
                     )
-                )
+                elif isinstance(img, np.ndarray):
+                    img_bytes = io.BytesIO()
+                    np.save(img_bytes, img)
+                    img_bytes.seek(0)
+                    files.append(
+                        (
+                            f"image_{i}",
+                            (f"image_{i}.npy", img_bytes, "application/octet-stream"),
+                        )
+                    )
+                else:
+                    raise ValueError("Unsupported image type. Use PIL Image or numpy ndarray.")
 
         json_bytes = io.BytesIO(
             json.dumps(

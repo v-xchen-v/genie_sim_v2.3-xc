@@ -162,15 +162,15 @@ def decode_depth_image(msg: CompressedImage) -> np.ndarray:
     # - If it used PNG32F → dtype=float32
     print(depth_img.shape, depth_img.dtype)
 
-    # Convert to meters if needed
-    if depth_img.dtype == np.uint16:
-        # often stored in millimeters
-        depth_m = depth_img.astype(np.float32)
-    elif depth_img.dtype == np.float32:
-        depth_m = depth_img
-    else:
-        raise ValueError(f"Unexpected depth dtype: {depth_img.dtype}")
-    return depth_m # depth_m is uint16 in meters
+    # # Convert to meters if needed
+    # if depth_img.dtype == np.uint16:
+    #     # often stored in millimeters
+    #     depth_m = depth_img.astype(np.float32)
+    # elif depth_img.dtype == np.float32:
+    #     depth_m = depth_img
+    # else:
+    #     raise ValueError(f"Unexpected depth dtype: {depth_img.dtype}")
+    return depth_img # depth_m is uint16 in meters
             
 def depth_to_rgb_uint8(depth_img: np.ndarray, min_val: int, max_val: int, cmap_name: str = "turbo") -> np.ndarray:
     import matplotlib
@@ -402,6 +402,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     
                     if depth_cameras.get('head', True) and depth_img_h_raw is not None:
                         depth_img_h = decode_depth_image(depth_img_h_raw)
+                        # logger.info(f"Type of depth_img_h: {type(depth_img_h)}, shape: {depth_img_h.shape}, dtype: {depth_img_h.dtype}")
                         depth_imgs_processed['head'] = depth_img_h
                         
                         # Save debug images if enabled
