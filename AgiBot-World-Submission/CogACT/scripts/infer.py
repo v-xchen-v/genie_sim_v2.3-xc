@@ -165,7 +165,7 @@ def decode_depth_image(msg: CompressedImage) -> np.ndarray:
     # Convert to meters if needed
     if depth_img.dtype == np.uint16:
         # often stored in millimeters
-        depth_m = depth_img.astype(np.float32) / 1000.0
+        depth_m = depth_img.astype(np.float32)
     elif depth_img.dtype == np.float32:
         depth_m = depth_img
     else:
