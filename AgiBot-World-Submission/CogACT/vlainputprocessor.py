@@ -26,14 +26,18 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera"):        
+    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera", image_strategy="rgb_only"):        
         
         self.log_obs = log_obs
         self.resize_mode = resize_mode
         self.coord_mode = coord_mode  # "camera" or "robot_base"
+        self.image_strategy = image_strategy  # "rgb_only" or "rgb_depth"
         
         if self.coord_mode not in ["camera", "robot_base"]:
             raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
+        
+        if self.image_strategy not in ["rgb_only", "rgb_depth"]:
+            raise ValueError(f"Invalid image_strategy: {self.image_strategy}. Must be 'rgb_only' or 'rgb_depth'.")
         
         if self.log_obs:
             # Initialize log directory registry if logging is enabled
@@ -69,21 +73,36 @@ class VLAInputProcessor:
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
 
-    def process(self, img_h, img_l, img_r, lang, state, task_substep_index, head_joint_cfg=None):
+    def process(self, img_h, img_l, img_r, lang, state, task_substep_index, head_joint_cfg=None, img_depth_h=None, img_depth_l=None, img_depth_r=None):
         """
         Process the input images, task description, and robot state.
         
         Args:
-            img_h: Head image
-            img_l: Left wrist image
-            img_r: Right wrist image
+            img_h: Head RGB image
+            img_l: Left wrist RGB image
+            img_r: Right wrist RGB image
             lang: Task description in natural language
             state: Robot state information
+            task_substep_index: Current task substep index
+            head_joint_cfg: Head joint configuration (optional)
+            img_depth_h: Head depth image (optional, used when image_strategy="rgb_depth")
+            img_depth_l: Left wrist depth image (optional, used when image_strategy="rgb_depth")
+            img_depth_r: Right wrist depth image (optional, used when image_strategy="rgb_depth")
             
         Returns:
             A dictionary containing processed images, task description, and robot state.
         """
+        # Store RGB images
         self.image_list = [img_h, img_l, img_r]
+        
+        # Store depth images if using rgb_depth strategy
+        if self.image_strategy == "rgb_depth":
+            if img_depth_h is None or img_depth_l is None or img_depth_r is None:
+                raise ValueError("Depth images must be provided when using 'rgb_depth' strategy")
+            self.depth_image_list = [img_depth_h, img_depth_l, img_depth_r]
+        else:
+            self.depth_image_list = None
+            
         self.task_instruction = lang
         self.robot_state = state
         self.curr_task_substep_index = task_substep_index
@@ -103,15 +122,31 @@ class VLAInputProcessor:
             # Log observations if required
             self._log_observations(obs_dict, log_dir="./obs_logs")
        
-        input_data = {
-            "image_list" : [
-                Image.fromarray(obs_dict["images"]["cam_top"]),
-                Image.fromarray(obs_dict["images"]["head_left"]),
-                Image.fromarray(obs_dict["images"]["head_right"]),
-            ],
-            "task_description": obs_dict["task_description"],
-            "robot_state": obs_dict["robot_state"],
-        }
+        if self.image_strategy == "rgb_only":
+            # Strategy 1: RGB images only (original behavior)
+            input_data = {
+                "image_list" : [
+                    Image.fromarray(obs_dict["images"]["cam_top"]),
+                    Image.fromarray(obs_dict["images"]["head_left"]),
+                    Image.fromarray(obs_dict["images"]["head_right"]),
+                ],
+                "task_description": obs_dict["task_description"],
+                "robot_state": obs_dict["robot_state"],
+            }
+        else:  # rgb_depth strategy
+            # Strategy 2: RGB + Depth images
+            input_data = {
+                "image_list" : [
+                    Image.fromarray(obs_dict["images"]["cam_top"]),
+                    Image.fromarray(obs_dict["images"]["head_left"]),
+                    Image.fromarray(obs_dict["images"]["head_right"]),
+                    Image.fromarray(obs_dict["images"]["cam_top_depth"]),
+                    Image.fromarray(obs_dict["images"]["head_left_depth"]),
+                    Image.fromarray(obs_dict["images"]["head_right_depth"]),
+                ],
+                "task_description": obs_dict["task_description"],
+                "robot_state": obs_dict["robot_state"],
+            }
         
         return input_data
         
@@ -128,6 +163,13 @@ class VLAInputProcessor:
         head_left_img = processed_images[1]
         head_right_img = processed_images[2]
         
+        # Process depth images if using rgb_depth strategy
+        if self.image_strategy == "rgb_depth":
+            processed_depth_images = self.preprocess_depth_images()
+            cam_top_depth_img = processed_depth_images[0]
+            head_left_depth_img = processed_depth_images[1]
+            head_right_depth_img = processed_depth_images[2]
+        
         # Preprocess task instruction
         processed_task_instruction = self.preprocess_instruction(self.task_instruction, self.curr_task_substep_index)
         
@@ -138,13 +180,23 @@ class VLAInputProcessor:
             processed_robot_state = None
             
         # Construct the observations dictionary
+        images_dict = {
+            "cam_top": cam_top_img,
+            "head_left": head_left_img,
+            "head_right": head_right_img,
+        }
+        
+        # Add depth images if using rgb_depth strategy
+        if self.image_strategy == "rgb_depth":
+            images_dict.update({
+                "cam_top_depth": cam_top_depth_img,
+                "head_left_depth": head_left_depth_img,
+                "head_right_depth": head_right_depth_img,
+            })
+        
         obs_dict = {
             "task_description": processed_task_instruction,
-            "images": {
-                "cam_top": cam_top_img,
-                "head_left": head_left_img,
-                "head_right": head_right_img,
-            },
+            "images": images_dict,
             "robot_state": processed_robot_state,
         }
         return obs_dict
@@ -391,7 +443,21 @@ class VLAInputProcessor:
             processed_images.append(processed_img)
         return processed_images
     
-            
+    def preprocess_depth_images(self):
+        """
+        Preprocess the depth images in the depth_image_list.
+        This could include resizing, normalization, etc.
+        """
+        if self.depth_image_list is None:
+            raise ValueError("Depth images not available. Make sure to provide depth images when using 'rgb_depth' strategy.")
+        
+        processed_depth_images = []
+        for depth_img in self.depth_image_list:
+            # Perform preprocessing on each depth image
+            processed_depth_img = self._preprocess_single_depth_image(depth_img)
+            processed_depth_images.append(processed_depth_img)
+        return processed_depth_images
+    
     def _preprocess_single_image(self, img):
         """
         Preprocess a single image.
@@ -405,6 +471,18 @@ class VLAInputProcessor:
         # Resize the image to a fixed size (e.g., 224x224)
         img = self._resize_image(img, target_size=(224, 224), resize_mode=self.resize_mode)
         return img        
+    
+    def _preprocess_single_depth_image(self, depth_img):
+        """
+        Preprocess a single depth image.
+        
+        Args:
+            depth_img: The depth image to preprocess.
+        
+        Returns:
+            The preprocessed depth image.
+        """
+        return depth_img
     
     def _obs_instruction(self, lang,  substep_index=0):
         instruction_splits = self._split_instruction(lang)
