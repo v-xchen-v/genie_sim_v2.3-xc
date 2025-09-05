@@ -6,11 +6,33 @@
 
 set -e  # Exit on any error
 
-# Configuration
-COGACT_DIR="/root/workspace/main/AgiBot-World-Submission/CogACT"
-BENCHMARK_OUTPUT_DIR="/root/workspace/main/source/geniesim/benchmark/output"
-SCRIPT_DIR="/root/workspace/main/scripts"
-BACKUP_DIR="/root/workspace/main/multi_run_outputs"
+# Auto-detect environment and set base directory
+if [ -d "/root/workspace/main" ]; then
+    # Running inside container
+    BASE_DIR="/root/workspace/main"
+    print_info() {
+        echo "[INFO] (Container) $1"
+    }
+elif [ -d "/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc" ]; then
+    # Running outside container
+    BASE_DIR="/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
+    print_info() {
+        echo "[INFO] (Host) $1"
+    }
+else
+    echo "[ERROR] Cannot detect environment. Neither container nor host base directory found."
+    echo "  Container path: /root/workspace/main"
+    echo "  Host path: /home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
+    exit 1
+fi
+
+# Configuration based on detected environment
+COGACT_DIR="$BASE_DIR/AgiBot-World-Submission/CogACT"
+BENCHMARK_OUTPUT_DIR="$BASE_DIR/source/geniesim/benchmark/output"
+SCRIPT_DIR="$BASE_DIR/scripts"
+BACKUP_DIR="$BASE_DIR/multi_run_outputs"
+
+print_info "Detected base directory: $BASE_DIR"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
@@ -20,10 +42,6 @@ print_header() {
     echo "========================================"
     echo "$1"
     echo "========================================"
-}
-
-print_info() {
-    echo "[INFO] $1"
 }
 
 print_error() {
@@ -114,7 +132,7 @@ run_batch() {
     
     # Run the batch script
     print_info "Executing batchrun.sh -1 $task_name $model_name"
-    cd "$SCRIPT_DIR/.."  # Change to main directory
+    cd "$BASE_DIR"  # Change to base directory
     
     if ./scripts/batchrun.sh -1 "$task_name" "$model_name"; then
         print_info "Run $run_id completed successfully"
@@ -161,9 +179,9 @@ main() {
     # You can modify this array to add/remove/change configurations
     configs=(
         "1:inference_config.19020.yaml:all:CogACT"
-        "2:inference_config.24025.yaml:all:CogACT"
-        "3:inference_config.24xxx.yaml:all:CogACT"
-        "4:inference_config.19xxx.yaml:all:CogACT"
+        # "2:inference_config.24025.yaml:all:CogACT"
+        # "3:inference_config.24xxx.yaml:all:CogACT"
+        # "4:inference_config.19xxx.yaml:all:CogACT"
     )
     
     print_info "Found ${#configs[@]} configuration sets to run"
@@ -204,6 +222,11 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     echo ""
     echo "This script runs multiple batchrun.sh executions in sequence with different"
     echo "inference configurations and organizes output files to avoid conflicts."
+    echo ""
+    echo "Environment Detection:"
+    echo "  - Container: /root/workspace/main"
+    echo "  - Host: /home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
+    echo "  - Current: $BASE_DIR"
     echo ""
     echo "The script will:"
     echo "  1. Run batchrun.sh -1 all CogACT with different inference configs"
