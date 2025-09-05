@@ -49,10 +49,14 @@ class InferenceConfig:
         """Get image resize mode."""
         return self.config['image_processing']['resize_mode']
     
-    @property
-    def depth_images_enabled(self) -> bool:
-        """Get whether depth images are enabled."""
-        return self.config['image_processing'].get('depth_images', {}).get('enabled', False)
+    def get_image_strategy(self) -> str:
+        """Get image input strategy from policy configuration."""
+        strategy = self.config['policy'].get('image_strategy', 'rgb_only')
+        # Validate strategy
+        valid_strategies = ['rgb_only', 'rgb_depth']
+        if strategy not in valid_strategies:
+            raise ValueError(f"Invalid image_strategy: {strategy}. Must be one of {valid_strategies}")
+        return strategy
     
     @property 
     def depth_save_debug_images(self) -> bool:
@@ -78,6 +82,10 @@ class InferenceConfig:
         """Get depth camera configuration."""
         default_cameras = {'head': True, 'left_wrist': True, 'right_wrist': True}
         return self.config['image_processing'].get('depth_images', {}).get('cameras', default_cameras)
+    
+    def is_depth_required(self) -> bool:
+        """Check if depth images are required based on the image strategy."""
+        return self.get_image_strategy() == "rgb_depth"
     
     # @property
     # def log_observations(self) -> bool:
