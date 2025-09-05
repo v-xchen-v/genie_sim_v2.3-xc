@@ -521,11 +521,13 @@ class EEtoJointProcessor:
         
         # Transform from arm base to robot base coordinates
         T_armbase_to_robotbase = self.coord_transformer.relative_transform("arm_base_link", "base_link")
-        T_ee_robotbase = T_armbase_to_robotbase @ T_ee_armbase
+        T_ee_to_robotbase = np.linalg.inv(T_armbase_to_robotbase) @ T_ee_armbase
         
-        curr_ee_rot = T_ee_robotbase[:3, :3]  # [3x3] rotation matrix
-        curr_ee_trans = T_ee_robotbase[:3, 3]  # [tx, ty, tz]
-        
+        curr_ee_rot = T_ee_to_robotbase[:3, :3]  # [3x3] rotation matrix
+        curr_ee_trans = T_ee_to_robotbase[:3, 3]  # [tx, ty, tz]
+
+        self.logger.debug(f"Current {arm} end-effector pose in robot base frame: \nRotation:\n{curr_ee_rot}\nTranslation:\n{curr_ee_trans}")
+
         return curr_ee_rot, curr_ee_trans
     
     def _transform_pose_camera_to_arm_base(self, pose_4x4, head_joint_cfg):
@@ -557,7 +559,7 @@ class EEtoJointProcessor:
         """
         # Transform from robot base to arm base coordinates
         T_robotbase_to_armbase = self.coord_transformer.relative_transform("base_link", "arm_base_link")
-        T_ee_pose_arm_base_frame = T_robotbase_to_armbase @ pose_4x4
+        T_ee_pose_arm_base_frame = np.linalg.inv(T_robotbase_to_armbase) @ pose_4x4
         
         return T_ee_pose_arm_base_frame
 

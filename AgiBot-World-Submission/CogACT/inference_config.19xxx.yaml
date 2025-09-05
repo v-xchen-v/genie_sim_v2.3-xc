@@ -11,24 +11,25 @@ image_processing:
   
   # Depth image handling configuration
   depth_images:
+    enabled: false  # Set to true when model needs depth images as input
     save_debug_images: false  # Save depth images to disk for debugging
     colormap: "turbo"  # Colormap for depth visualization: "turbo", "viridis", "plasma", etc.
     depth_range:
       min_val: 0.256  # Minimum depth value in meters for normalization
       max_val: 1.024  # Maximum depth value in meters for normalization
     
-    # Which depth cameras to use (when policy.image_strategy="rgb_depth")
+    # Which depth cameras to use (when enabled=true)
     cameras:
       head: true      # Use head depth camera
       left_wrist: true   # Use left wrist depth camera  
       right_wrist: true  # Use right wrist depth camera
     
     # Notes:
-    # - Depth image fetching is controlled by policy.image_strategy setting
-    # - When image_strategy="rgb_only": depth images are not fetched (saves bandwidth)
-    # - When image_strategy="rgb_depth": depth images are fetched and processed 
+    # - When enabled=false: depth images are not fetched at all (saves bandwidth)
+    # - When enabled=true: depth images are fetched and processed 
     # - save_debug_images=true: saves colorized depth images to disk for debugging
     # - Depth images are processed to float32 format in meters
+    # - To use depth images in the model, modify VLAInputProcessor.process() method
   
 #   log_observations: false  # Whether to log observations during processing
   
@@ -44,28 +45,58 @@ image_processing:
   # inference_step_image_prefix: "inference"  # Prefix for inference step imagesuration for Robot Task Execution
 
 # =========================================================================
+# ROS CONFIGURATION
+# =========================================================================
+ros:
+  # ROS node loop rate configuration (Hz)
+  loop_rate: 4.0  # Default: 4.0 Hz
+  
+  # Task-specific loop rates (overrides default)
+  task_loop_rates:
+    # Example task-specific configurations:
+    # iros_pack_moving_objects_from_conveyor: 6.0  # Higher rate for fast tasks
+    # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
+    
+  # ROS node configuration
+  node_name: "univla_node"  # Default ROS node name
+  use_sim_time: true  # Use simulation time
+
+# =========================================================================
 # TASK EXECUTION CONFIGURATION
 # =========================================================================
 task_execution:
   # Default execution steps (16-step trajectory)
   default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   
-  # Task-specific execution steps
-  task_execution_steps:
+  # # Task-specific execution steps
+  # task_execution_steps:
+  #   iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8]  # Use first 10 steps
+  #   iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  #   # iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  #   iros_make_a_sandwich: [0, 1, 2, 3]
+  #   iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  #   iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
+  #   iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  #   iros_pack_moving_objects_from_conveyor:
+  #     pickup_substep: [0, 4, 8, 12]  # Every 4th step for fast pickup
+  #     place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+  #   iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  #   iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  #   iros_clear_table_in_the_restaurant: [0, 4, 8, 12]
+    # Task-specific execution steps
+  task_execution_steps: # works for 19xxx
     iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3, 4, 5, 6, 7]  # Use first 8 steps
+    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
-      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
-      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
+      pickup_substep: [0, 4, 8, 12, 15]  # Every 4th step for fast pickup
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
-    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
-    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
-    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
-    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-    iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
   # Gripper configuration
   gripper_config:
@@ -78,24 +109,20 @@ task_execution:
     strategy_per_task:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
-      iros_restock_supermarket_items: "larger_two_side"
-      iros_clear_table_in_the_restaurant: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
     ratios_per_task:
       iros_pack_moving_objects_from_conveyor:
-        larger_two_side: 2
+        larger_two_side: 1.714
       iros_pickup_items_from_the_freezer:
-        larger_two_side: 2 # maybe smaller is better, need to test
-      iros_restock_supermarket_items:
-        larger_two_side: 2.1
+        larger_two_side: 2
+      # iros_restock_supermarket_items:
+      #   larger_one_side: 1.8
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
-      iros_make_a_sandwich:
-        larger_two_side: 1.714
-      # iros_pack_in_the_supermarket:
-      #   larger_two_side: 1.7
+      iros_pack_in_the_supermarket:
+        larger_two_side: 1.7
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -110,19 +137,13 @@ task_execution:
       task_specific:
         iros_pack_in_the_supermarket: 
           frames_32: 0
-          frames_16: 5
-          frames_8: 0
+          frames_16: 7
+          # frames_8: 3
           # frames_4: 1
-        iros_restock_supermarket_items:
-          frames_16: 3
-          frames_8: 0
-          frames_4: 0
-        iros_pickup_items_from_the_freezer:
-          frames_16: 1
-        iros_make_a_sandwich:
-          frames_16: 1
-
-
+    #     iros_restock_supermarket_items:
+    #       frames_16: 7
+    #       frames_8: 3
+    #       frames_4: 1
     
     # # Gripper signal filter parameters
     # signal_filter:
@@ -140,17 +161,8 @@ task_execution:
       pickup_substep: 1  # For pickup substep
       place_substep: 2  # For place substep
     iros_make_a_sandwich: 1
-    iros_restock_supermarket_items:
-      pickup_substep: 1
-      place_substep: 2
+    iros_restock_supermarket_items: 1
     iros_pack_in_the_supermarket: 1
-    iros_clear_table_in_the_restaurant:
-      pickup_substep: 2
-      place_substep: 1
-    iros_open_drawer_and_store_items: 1
-    iros_pickup_items_from_the_freezer: 1
-    iros_stamp_the_seal: 2 # slower to make sure stamp will not be kicked away
-    iros_heat_the_food_in_the_microwave: 1
     default: 2
 
   # Inverse Kinematics configuration
@@ -160,11 +172,11 @@ task_execution:
       default: 1  # Default number of IK iterations
       # Task-specific IK iteration overrides (if needed)
       # iros_pack_moving_objects_from_conveyor: 3
-      iros_restock_supermarket_items: 1
-      iros_clear_table_in_the_restaurant: 1
+      # iros_restock_supermarket_items: 1
+      iros_clear_table_in_the_restaurant: 3
     
     # IK error logging configuration
-    enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
+    enable_error_logging: true  # Enable/disable logging of IK translation and rotation errors
 
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
@@ -173,14 +185,15 @@ task_progression:
   # Progress thresholds for substep advancement
   progress_thresholds:
     iros_pack_in_the_supermarket: 0.98
-    iros_restock_supermarket_items: 0.97
+    iros_restock_supermarket_items: 0.9
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.96
-    iros_clear_table_in_the_restaurant: 0.97
-    iros_heat_the_food_in_the_microwave: 0.96
+    iros_clear_table_in_the_restaurant: 0.6
+    iros_heat_the_food_in_the_microwave: 0.6
     iros_open_drawer_and_store_items: 0.97
+    iros_pack_moving_objects_from_conveyor: 0.4
     iros_pickup_items_from_the_freezer: 0.95
-    iros_make_a_sandwich: 0.96
+    iros_make_a_sandwich: 0.9
   
   # Minimum inference counters before advancing
   min_inference_counters:
@@ -190,22 +203,19 @@ task_progression:
     iros_clear_the_countertop_waste: 6
     iros_clear_table_in_the_restaurant: 10
     iros_heat_the_food_in_the_microwave: 40
-    iros_open_drawer_and_store_items: 48
-    iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
+    iros_open_drawer_and_store_items: 32
+    iros_pack_moving_objects_from_conveyor: 12  # For [0, 4, 8, 12] steps
     iros_pickup_items_from_the_freezer: 24
     iros_make_a_sandwich: 12
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
-    iros_pack_in_the_supermarket: 60
-    iros_clear_table_in_the_restaurant: 40  # 1-9 steps
-    iros_heat_the_food_in_the_microwave: 120
+    iros_pack_in_the_supermarket: 20
+    iros_heat_the_food_in_the_microwave: 40
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
     iros_open_drawer_and_store_items: 80  # 1-8 steps
     iros_clear_the_countertop_waste: 80  # 1-9 steps
-    iros_restock_supermarket_items: 20
-    iros_stamp_the_seal: 80
-    iros_make_a_sandwich: 40
+    iros_clear_table_in_the_restaurant: 80  # 1-9 steps
   
   # Default progression strategy for each task
   task_progression_strategies:
@@ -249,34 +259,14 @@ head_joint_configurations:
     idx12_head_joint2: 0.43634
 
 # =========================================================================
-# ROS CONFIGURATION
-# =========================================================================
-ros:
-  # ROS node loop rate configuration (Hz)
-  loop_rate: 4.0  # Default: 4.0 Hz
-  
-  # Task-specific loop rates (overrides default)
-  task_loop_rates:
-    # Example task-specific configurations:
-    iros_pack_moving_objects_from_conveyor: 10.0  # Higher rate for fast tasks
-    # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
-    
-  # # ROS node configuration
-  # node_name: "univla_node"  # Default ROS node name
-  # use_sim_time: true  # Use simulation time
-
-# =========================================================================
 # POLICY CONFIGURATION
 # =========================================================================
 policy:
   # API settings
   ip: "10.190.172.212"
-  # port: 19015 # no aug, step 15k
-  # port: 19020 # no aug, step 20k
+  port: 19015 # no aug, step 15k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
   # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
-  port: 24020 # robot base, step 20k
-  # port: 24015 # robot base, step 15k
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
@@ -286,29 +276,6 @@ policy:
   # 19030: no aug, step~30k, new sim data
   # 19040  # Current: no aug, step~30k, new sim dat
   # 20020: no aug, step~20k, new sim data, batchsize=1k
-
-  # Coordinate mode configuration (model-dependent)
-  coordinate_mode: "robot_base"  # Options: "camera", "robot_base"
-  
-  # Mode descriptions:
-  # - "camera": Transform through camera coordinates (original behavior)
-  #   VLA poses → camera coordinates → arm base → joint angles
-  #   Use this for models trained with camera-relative poses
-  # - "robot_base": Work directly in robot base coordinates (new behavior)  
-  #   VLA poses → robot base coordinates → arm base → joint angles
-  #   Use this for models trained with robot-relative poses
-
-  # Image input strategy configuration (model-dependent)
-  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
-  
-  # Strategy descriptions:
-  # - "rgb_only": Use only RGB images as input (original behavior)
-  #   Input: [img_h, img_l, img_r] (3 RGB images)
-  #   Use this for models trained with RGB images only
-  # - "rgb_depth": Use RGB + depth images as input (new behavior)
-  #   Input: [img_h, img_l, img_r, depth_h, depth_l, depth_r] (3 RGB + 3 depth images)
-  #   Use this for models trained with both RGB and depth images
-  #   Note: Depth image processing is automatically enabled when using "rgb_depth"
 
 # # =========================================================================
 # # SIMULATION CONFIGURATION
@@ -341,17 +308,15 @@ logging:
 # =========================================================================
 # To enable depth image processing for a model that requires depth input:
 # 
-# 1. Set policy.image_strategy to "rgb_depth"
+# 1. Set depth_images.enabled to true
 # 2. Optionally enable save_debug_images for debugging
 # 3. Configure which cameras to use
-# 4. VLAInputProcessor will automatically handle depth image processing
+# 4. Modify VLAInputProcessor.process() to accept and use depth images
 #
 # Example configuration:
-# policy:
-#   image_strategy: "rgb_depth"  # Use RGB + depth images
-# 
 # image_processing:
 #   depth_images:
+#     enabled: true
 #     save_debug_images: true  # For debugging
 #     colormap: "turbo"
 #     depth_range:
