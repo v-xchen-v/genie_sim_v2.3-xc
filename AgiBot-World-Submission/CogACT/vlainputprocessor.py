@@ -26,10 +26,15 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize"):        
+    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera"):        
         
         self.log_obs = log_obs
         self.resize_mode = resize_mode
+        self.coord_mode = coord_mode  # "camera" or "robot_base"
+        
+        if self.coord_mode not in ["camera", "robot_base"]:
+            raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
+        
         if self.log_obs:
             # Initialize log directory registry if logging is enabled
             self.task_name = "iros_pack_in_the_supermarket"  # Placeholder, can be set later
@@ -207,13 +212,17 @@ class VLAInputProcessor:
     def preprocess_single_robot_state(self, robot_joints, head_joint_cfg):
         """
         Preprocess a single robot state, which is joint angle to ee pose.
+        Supports two coordinate modes:
+        - "camera": Transform to camera coordinates (existing behavior)
+        - "robot_base": Keep in robot base coordinates (new behavior)
+        
         Ref:
         "robot_state": {
-                "ROBOT_LEFT_TRANS": robot_ee_left_translation_in_head_cam.tolist(),
-                "ROBOT_LEFT_ROT_EULER": robot_ee_left_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_LEFT_TRANS": robot_ee_left_translation_in_target_coord.tolist(),
+                "ROBOT_LEFT_ROT_EULER": robot_ee_left_rotation_euler_xyz_in_target_coord.tolist(),
                 "ROBOT_LEFT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
-                "ROBOT_RIGHT_TRANS": robot_ee_right_translation_in_head_cam.tolist(),
-                "ROBOT_RIGHT_ROT_EULER": robot_ee_right_rotation_euler_xyz_in_head_cam.tolist(),
+                "ROBOT_RIGHT_TRANS": robot_ee_right_translation_in_target_coord.tolist(),
+                "ROBOT_RIGHT_ROT_EULER": robot_ee_right_rotation_euler_xyz_in_target_coord.tolist(),
                 "ROBOT_RIGHT_GRIPPER": np.zeros((1,), dtype=np.float32).tolist(),
             },
         Args:
@@ -244,16 +253,51 @@ class VLAInputProcessor:
         T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(left_arm_joints)
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(right_arm_joints)
         
+        if self.coord_mode == "camera":
+            # Transform to camera coordinates (existing behavior)
+            T_left_ee_final, T_right_ee_final = self._transform_to_camera_coords(
+                T_left_ee_pose_in_armbase_coord[0], 
+                T_right_ee_pose_in_armbase_coord[0], 
+                head_joint_cfg
+            )
+        elif self.coord_mode == "robot_base":
+            # Keep in robot base coordinates (new behavior)
+            # arm-based ee final
+            T_left_ee_final = T_left_ee_pose_in_armbase_coord[0]
+            T_right_ee_final = T_right_ee_pose_in_armbase_coord[0]
+            # transfrom ee final from arm base to robot base
+            T_armbase_to_robotbase = self.coord_transformer.relative_transform("arm_base_link", "base_link")
+            T_left_ee_final = T_armbase_to_robotbase @ T_left_ee_final
+            T_right_ee_final = T_armbase_to_robotbase @ T_right_ee_final
+        
+        # Decompose the transformation matrices to get translation and rotation
+        left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_final)
+        right_ee_translation, right_ee_rotation = self.coord_transformer.decompose_transform(T_right_ee_final)
+        
+        # Convert rotation to Euler angles in XYZ order
+        left_ee_rotation_euler_xyz = np.array(left_ee_rotation)
+        right_ee_rotation_euler_xyz = np.array(right_ee_rotation)
+        
+        # Prepare the robot state dictionary
+        robot_state = {
+            "ROBOT_LEFT_TRANS": left_ee_translation.tolist(),
+            "ROBOT_LEFT_ROT_EULER": left_ee_rotation_euler_xyz.tolist(),
+            "ROBOT_LEFT_GRIPPER": np.array([left_gripper_joint]).tolist(),
+            "ROBOT_RIGHT_TRANS": right_ee_translation.tolist(),
+            "ROBOT_RIGHT_ROT_EULER": right_ee_rotation_euler_xyz.tolist(),
+            "ROBOT_RIGHT_GRIPPER": np.array([right_gripper_joint]).tolist(),
+        }
+        return robot_state
+    
+    def _transform_to_camera_coords(self, T_left_ee_armbase, T_right_ee_armbase, head_joint_cfg):
+        """
+        Transform end-effector poses from arm base coordinates to camera coordinates.
+        This is the original transformation logic extracted into a separate method.
+        """
         # transform end-effector pose to arm base coord to head camera coord
         T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", joint_values=head_joint_cfg)
-        # T_left_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
-        #         T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-        #     )[0]
-        # T_right_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
-        #         T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-        #     )[0]
-        T_left_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_pose_in_armbase_coord[0]
-        T_right_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_pose_in_armbase_coord[0]
+        T_left_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_armbase
+        T_right_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_armbase
         
         """Head_Came in head_link2 coord
 
@@ -275,29 +319,11 @@ class VLAInputProcessor:
         T_left_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_left_ee_pose_in_headlink2_coord
         T_right_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_right_ee_pose_in_headlink2_coord
 
-
-        # # convert from sim cam coord to real cam coord, since urdf consistent with real cam coord
-        T_left_ee_pose_in_real_headcam_coord= self.T_obj_in_simcam_to_T_obj_in_realcam(T_left_ee_pose_in_headcam_coord)
-        T_right_ee_pose_in_real_headcam_coord= self.T_obj_in_simcam_to_T_obj_in_realcam(T_right_ee_pose_in_headcam_coord)
+        # convert from sim cam coord to real cam coord, since urdf consistent with real cam coord
+        T_left_ee_pose_in_real_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_left_ee_pose_in_headcam_coord)
+        T_right_ee_pose_in_real_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_right_ee_pose_in_headcam_coord)
         
-        # Decompose the transformation matrices to get translation and rotation
-        left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_pose_in_real_headcam_coord)
-        right_ee_translation, right_ee_rotation = self.coord_transformer.decompose_transform(T_right_ee_pose_in_real_headcam_coord)
-        
-        # Convert rotation to Euler angles in XYZ order
-        left_ee_rotation_euler_xyz = np.array(left_ee_rotation)
-        right_ee_rotation_euler_xyz = np.array(right_ee_rotation)
-        
-        # Prepare the robot state dictionary
-        robot_state = {
-            "ROBOT_LEFT_TRANS": left_ee_translation.tolist(),
-            "ROBOT_LEFT_ROT_EULER": left_ee_rotation_euler_xyz.tolist(),
-            "ROBOT_LEFT_GRIPPER": np.array([left_gripper_joint]).tolist(),
-            "ROBOT_RIGHT_TRANS": right_ee_translation.tolist(),
-            "ROBOT_RIGHT_ROT_EULER": right_ee_rotation_euler_xyz.tolist(),
-            "ROBOT_RIGHT_GRIPPER": np.array([right_gripper_joint]).tolist(),
-        }
-        return robot_state
+        return T_left_ee_pose_in_real_headcam_coord, T_right_ee_pose_in_real_headcam_coord
     
     
     def T_obj_in_simcam_to_T_obj_in_realcam(
