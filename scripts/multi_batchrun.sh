@@ -6,33 +6,33 @@
 
 set -e  # Exit on any error
 
-# Auto-detect environment and set base directory
-if [ -d "/root/workspace/main" ]; then
-    # Running inside container
-    BASE_DIR="/root/workspace/main"
-    print_info() {
-        echo "[INFO] (Container) $1"
-    }
-elif [ -d "/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc" ]; then
-    # Running outside container
-    BASE_DIR="/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
-    print_info() {
-        echo "[INFO] (Host) $1"
-    }
-else
-    echo "[ERROR] Cannot detect environment. Neither container nor host base directory found."
-    echo "  Container path: /root/workspace/main"
-    echo "  Host path: /home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
-    exit 1
-fi
-
+# # Auto-detect environment and set base directory
+# if [ -d "/root/workspace/main" ]; then
+#     # Running inside container
+#     BASE_DIR="/root/workspace/main"
+#     echo() {
+#         echo "[INFO] (Container) $1"
+#     }
+# elif [ -d "/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc" ]; then
+#     # Running outside container
+#     BASE_DIR="/home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
+#     echo() {
+#         echo "[INFO] (Host) $1"
+#     }
+# else
+#     echo "[ERROR] Cannot detect environment. Neither container nor host base directory found."
+#     echo "  Container path: /root/workspace/main"
+#     echo "  Host path: /home/xichen6/Documents/repos/genie_sim_v2.3/genie_sim_v2.3-xc"
+#     exit 1
+# fi
+BASE_DIR="$(pwd)"
 # Configuration based on detected environment
 COGACT_DIR="$BASE_DIR/AgiBot-World-Submission/CogACT"
 BENCHMARK_OUTPUT_DIR="$BASE_DIR/source/geniesim/benchmark/output"
 SCRIPT_DIR="$BASE_DIR/scripts"
 BACKUP_DIR="$BASE_DIR/multi_run_outputs"
 
-print_info "Detected base directory: $BASE_DIR"
+echo "Detected base directory: $BASE_DIR"
 
 # Create backup directory if it doesn't exist
 mkdir -p "$BACKUP_DIR"
@@ -54,12 +54,12 @@ backup_outputs() {
     local timestamp=$(date +%Y%m%d_%H%M%S)
     local run_backup_dir="$BACKUP_DIR/run_${run_id}_${timestamp}"
     
-    print_info "Backing up outputs for run $run_id to $run_backup_dir"
+    echo "Backing up outputs for run $run_id to $run_backup_dir"
     mkdir -p "$run_backup_dir"
     
     # Backup video_recordings from CogACT
     if [ -d "$COGACT_DIR/video_recordings" ]; then
-        print_info "Backing up CogACT video_recordings..."
+        echo "Backing up CogACT video_recordings..."
         cp -r "$COGACT_DIR/video_recordings" "$run_backup_dir/video_recordings_${run_id}_${timestamp}"
         # Clean original directory but keep the folder structure
         find "$COGACT_DIR/video_recordings" -mindepth 1 -delete
@@ -67,7 +67,7 @@ backup_outputs() {
     
     # Backup inference_logs from CogACT
     if [ -d "$COGACT_DIR/inference_logs" ]; then
-        print_info "Backing up CogACT inference_logs..."
+        echo "Backing up CogACT inference_logs..."
         cp -r "$COGACT_DIR/inference_logs" "$run_backup_dir/cogact_inference_logs_${run_id}_${timestamp}"
         # Clean original directory but keep the folder structure
         find "$COGACT_DIR/inference_logs" -mindepth 1 -delete
@@ -75,19 +75,19 @@ backup_outputs() {
     
     # Backup benchmark output
     if [ -d "$BENCHMARK_OUTPUT_DIR" ]; then
-        print_info "Backing up benchmark output..."
+        echo "Backing up benchmark output..."
         cp -r "$BENCHMARK_OUTPUT_DIR" "$run_backup_dir/benchmark_output_${run_id}_${timestamp}"
         # Clean original directory but keep the folder structure
         find "$BENCHMARK_OUTPUT_DIR" -mindepth 1 -delete 2>/dev/null || true
     fi
     
-    print_info "Backup completed for run $run_id"
+    echo "Backup completed for run $run_id"
 }
 
 # Function to restore original config
 restore_original_config() {
     if [ -f "$COGACT_DIR/inference_config.yaml.original" ]; then
-        print_info "Restoring original inference_config.yaml"
+        echo "Restoring original inference_config.yaml"
         cp "$COGACT_DIR/inference_config.yaml.original" "$COGACT_DIR/inference_config.yaml"
         rm "$COGACT_DIR/inference_config.yaml.original"
     fi
@@ -98,7 +98,7 @@ switch_config() {
     local config_file="$1"
     local run_id="$2"
     
-    print_info "Switching to configuration: $config_file (Run ID: $run_id)"
+    echo "Switching to configuration: $config_file (Run ID: $run_id)"
     
     # Backup original config if not already backed up
     if [ ! -f "$COGACT_DIR/inference_config.yaml.original" ]; then
@@ -108,7 +108,7 @@ switch_config() {
     # Copy the specific config to the main location
     if [ -f "$COGACT_DIR/$config_file" ]; then
         cp "$COGACT_DIR/$config_file" "$COGACT_DIR/inference_config.yaml"
-        print_info "Successfully switched to $config_file"
+        echo "Successfully switched to $config_file"
     else
         print_error "Configuration file $config_file not found!"
         return 1
@@ -131,11 +131,11 @@ run_batch() {
     echo "$(date): Run $run_id started with config $config_file, task: $task_name, model: $model_name" >> "$BACKUP_DIR/multi_run.log"
     
     # Run the batch script
-    print_info "Executing batchrun.sh -1 $task_name $model_name"
+    echo "Executing batchrun.sh -1 $task_name $model_name"
     cd "$BASE_DIR"  # Change to base directory
     
     if ./scripts/batchrun.sh -1 "$task_name" "$model_name"; then
-        print_info "Run $run_id completed successfully"
+        echo "Run $run_id completed successfully"
         echo "$(date): Run $run_id completed successfully" >> "$BACKUP_DIR/multi_run.log"
     else
         print_error "Run $run_id failed!"
@@ -145,12 +145,12 @@ run_batch() {
     # Backup outputs after the run
     backup_outputs "$run_id"
     
-    print_info "Run $run_id finished and outputs backed up"
+    echo "Run $run_id finished and outputs backed up"
 }
 
 # Cleanup function for script interruption
 cleanup() {
-    print_info "Script interrupted, cleaning up..."
+    echo "Script interrupted, cleaning up..."
     restore_original_config
     ./scripts/autorun.sh clean 2>/dev/null || true
     exit 1
@@ -184,7 +184,7 @@ main() {
         # "4:inference_config.19xxx.yaml:all:CogACT"
     )
     
-    print_info "Found ${#configs[@]} configuration sets to run"
+    echo "Found ${#configs[@]} configuration sets to run"
     
     # Create log file
     echo "$(date): Multi-batch run started" > "$BACKUP_DIR/multi_run.log"
@@ -193,13 +193,13 @@ main() {
     for config_set in "${configs[@]}"; do
         IFS=':' read -r run_id config_file task_name model_name <<< "$config_set"
         
-        print_info "Preparing to run configuration set: $config_set"
+        echo "Preparing to run configuration set: $config_set"
         
         # Run the batch with current config
         run_batch "$run_id" "$config_file" "$task_name" "$model_name"
         
         # Wait a bit between runs
-        print_info "Waiting 10 seconds before next run..."
+        echo "Waiting 10 seconds before next run..."
         sleep 10
     done
     
@@ -207,8 +207,8 @@ main() {
     restore_original_config
     
     print_header "All batch runs completed!"
-    print_info "Results are stored in: $BACKUP_DIR"
-    print_info "Check the log file: $BACKUP_DIR/multi_run.log"
+    echo "Results are stored in: $BACKUP_DIR"
+    echo "Check the log file: $BACKUP_DIR/multi_run.log"
     
     # Show summary
     echo ""
