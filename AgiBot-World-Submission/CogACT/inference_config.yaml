@@ -62,11 +62,11 @@ task_execution:
     # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
     iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
-    iros_make_a_sandwich: [0, 1, 2, 3]
+    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
     iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
     iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
 
   # Gripper configuration
   gripper_config:
@@ -93,6 +93,8 @@ task_execution:
         larger_two_side: 2.1
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
+      iros_make_a_sandwich:
+        larger_two_side: 1.714
       # iros_pack_in_the_supermarket:
       #   larger_two_side: 1.7
     
@@ -117,6 +119,8 @@ task_execution:
           frames_8: 0
           frames_4: 0
         iros_pickup_items_from_the_freezer:
+          frames_16: 1
+        iros_make_a_sandwich:
           frames_16: 1
 
 
@@ -146,7 +150,8 @@ task_execution:
       place_substep: 1
     iros_open_drawer_and_store_items: 1
     iros_pickup_items_from_the_freezer: 1
-    iros_stamp_the_seal: 3 # slower to make sure stamp will not be kicked away
+    iros_stamp_the_seal: 2 # slower to make sure stamp will not be kicked away
+    iros_heat_the_food_in_the_microwave: 1
     default: 2
 
   # Inverse Kinematics configuration
@@ -200,7 +205,7 @@ task_progression:
     iros_open_drawer_and_store_items: 80  # 1-8 steps
     iros_clear_the_countertop_waste: 80  # 1-9 steps
     iros_restock_supermarket_items: 20
-    iros_stamp_the_seal: 40
+    iros_stamp_the_seal: 80
     iros_make_a_sandwich: 40
   
   # Default progression strategy for each task
@@ -268,6 +273,7 @@ policy:
   # API settings
   ip: "10.190.172.212"
   port: 19015 # no aug, step 15k
+  port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
   # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
   
