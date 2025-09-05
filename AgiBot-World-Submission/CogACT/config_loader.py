@@ -153,6 +153,34 @@ class InferenceConfig:
         
         return steps_config
     
+    def get_coordinate_mode(self, task_name: str = None) -> str:
+        """
+        Get coordinate mode from policy configuration (model-dependent).
+        
+        Args:
+            task_name: Deprecated parameter (kept for backward compatibility).
+            
+        Returns:
+            Coordinate mode string: "camera" or "robot_base"
+        """
+        return self.config['policy']['coordinate_mode']
+    
+    # def set_coordinate_mode(self, mode: str):
+    #     """
+    #     Set coordinate mode in policy configuration (runtime override).
+        
+    #     Args:
+    #         mode: Coordinate mode ("camera" or "robot_base")
+    #     """
+    #     if mode not in ["camera", "robot_base"]:
+    #         raise ValueError(f"Invalid coordinate mode: {mode}. Must be 'camera' or 'robot_base'.")
+        
+    #     self.config['policy']['coordinate_mode'] = mode
+    
+    # def get_coordinate_modes_config(self) -> str:
+    #     """Get coordinate mode configuration from policy section."""
+    #     return self.config['policy']['coordinate_mode']
+    
     def get_gripper_config(self) -> Dict[str, Any]:
         """Get complete gripper configuration."""
         return self.config['task_execution']['gripper_config']

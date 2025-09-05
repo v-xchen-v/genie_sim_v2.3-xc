@@ -15,13 +15,20 @@ from config_loader import get_config
 
 class EEtoJointProcessor:
     """
-    Convert VLA ee pose (camera frame) -> arm base frame -> 7-DoF joint angles.
+    Convert VLA ee pose to 7-DoF joint angles.
+    Supports two coordinate modes:
+    - "camera": Transform through camera coordinates (original behavior): (camera frame) -> arm base frame -> 7-DoF joint angles.
+    - "robot_base": Work directly in robot base coordinates (new behavior): (robot base frame) -> arm base frame -> 7-DoF joint angles.
     Uses urdfpy FK + relax IK.
     """
     ### ------------Public API------------ ###
-    def __init__(self, logger: Optional[Any] = None):
+    def __init__(self, logger: Optional[Any] = None, coord_mode: str = "camera"):
         # Load configuration
         self.config = get_config()
+        
+        self.coord_mode = coord_mode
+        if self.coord_mode not in ["camera", "robot_base"]:
+            raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
         
         self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
         if not self.fk_urdf_path.exists():
@@ -348,55 +355,17 @@ class EEtoJointProcessor:
         T_left_ee_pose_in_armbase_coord = self.left_arm_ik_solver.compute_fk(curr_left_arm_joint_angles)[0]
         T_right_ee_pose_in_armbase_coord = self.right_arm_ik_solver.compute_fk(curr_right_arm_joint_angles)[0]
         
-
-        
-        # convert into head cam coord frame
-        if arm == "left":
-            # since URDF only have head_link2 but not cam link so that we first transform to head_link2
-            # then transform to head cam link
-            # T_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
-            #     T_left_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            # )
-
-            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
-            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_pose_in_armbase_coord
-            # print("T_ee_pose_in_headlink2_coord:", T_ee_pose_in_headlink2_coord)
-            
-        else:  # arm == "right"
-            # T_ee_pose_in_headlink2_coord_wa = self.coord_transformer.transform_pose(
-            #     T_right_ee_pose_in_armbase_coord, "arm_base_link", "head_link2", joint_values=head_joint_cfg
-            # )
-            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
-            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_pose_in_armbase_coord
-            # print("T_ee_pose_in_headlink2_coord:", T_ee_pose_in_headlink2_coord)
-            
-        """Head_Came in head_link2 coord
-
-        tx, ty, tz: [0.0858, -0.04119, 0.0]
-
-        rx, ry, rz(degree): [-180.0, -90.0, 0.0]
-        
-        rw, rx, ry, rz: [0.0, -0.70711, 0, 0.70711]"""
-        T_head_link2_to_head_cam = np.eye(4)
-        T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
-        # T_head_link2_to_head_cam[:3, :3] = R.from_euler(
-        #     'xyz', [-180.0, -90.0, 0.0], degrees=True
-        # ).as_matrix()  # Rotation in XYZ order
-        T_head_link2_to_head_cam[:3, :3] = R.from_quat(
-            [0.0, -0.70711, 0, 0.70711], scalar_first=True
-        ).as_matrix()
-
-        T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_ee_pose_in_headlink2_coord
-
-        # URDF cam coordinate is consistent with real camera coordinate, so that we could skip the conversion
-        # # the readed joint angles is from sim but delta predicted is based on real camera coordinate
-        # T_left_ee_pose_in_armbase_coord = self.realcam_to_simcam(T_obj_in_simcam=T_left_ee_pose_in_armbase_coord)
-        # T_ee_pose_in_headcam_coord = self.realcam_to_simcam(T_obj_in_realcam=T_ee_pose_in_headcam_coord) # wa
-        T_ee_pose_in_real_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_ee_pose_in_headcam_coord) # wa
-
-        curr_ee_rot = T_ee_pose_in_real_headcam_coord[:3, :3] # [3x3] rotation matrix
-        curr_ee_trans = T_ee_pose_in_real_headcam_coord[:3, 3] # [tx, ty, tz]
-
+        # Get current end-effector poses based on coordinate mode
+        if self.coord_mode == "camera":
+            # Transform to camera coordinates (existing behavior)
+            curr_ee_rot, curr_ee_trans = self._get_current_ee_pose_camera_mode(
+                arm, T_left_ee_pose_in_armbase_coord, T_right_ee_pose_in_armbase_coord, head_joint_cfg
+            )
+        elif self.coord_mode == "robot_base":
+            # Work directly in robot base coordinates (new behavior)
+            curr_ee_rot, curr_ee_trans = self._get_current_ee_pose_robot_base_mode(
+                arm, T_left_ee_pose_in_armbase_coord, T_right_ee_pose_in_armbase_coord
+            )
 
         rotation_list = []
         rotation_sum = curr_ee_rot
@@ -410,85 +379,24 @@ class EEtoJointProcessor:
         for trans_delta in translation_delta:
             translation_sum += trans_delta
             translation_list.append(translation_sum.copy())
-        # We got the real cam coord based end-effector poses in 16 steps, now we need to convert them to arm base frame    
         
-        poses = []
+        # Convert poses to arm base frame based on coordinate mode
         T_ee_pose_arm_base_frame_list = []
         for rot_matrix, trans_vec in zip(rotation_list, translation_list):
             if rot_matrix.shape != (3, 3) or len(trans_vec) != 3:
                 raise ValueError("Rotation and translation vectors must be of length 3.")
-            # rot_matrix = R.from_euler('xyz', rot_vec, degrees=False).as_matrix()
+            
             pose_4x4 = np.eye(4)
             pose_4x4[:3, :3] = rot_matrix
             pose_4x4[:3, 3] = trans_vec
 
-            # # # here we need to convert the pose from real cam to sim cam
-
-            # convert pose from real cam to sim cam coord
-            pose_4x4_sim_cam_base= self.realcam_to_simcam(T_obj_in_realcam=pose_4x4)
-
-            poses.append(pose_4x4_sim_cam_base) # based on real cam coord
-
+            if self.coord_mode == "camera":
+                # Transform from camera coordinates to arm base frame
+                T_ee_pose_arm_base_frame = self._transform_pose_camera_to_arm_base(pose_4x4, head_joint_cfg)
+            elif self.coord_mode == "robot_base":
+                # Transform from robot base coordinates to arm base frame
+                T_ee_pose_arm_base_frame = self._transform_pose_robot_base_to_arm_base(pose_4x4)
             
-
-            """Head_Came in head_link2 coord
-
-            tx, ty, tz: [0.0858, -0.04119, 0.0]
-
-            rx, ry, rz(degree): [-180.0, -90.0, 0.0]
-            
-            rw, rx, ry, rz: [0.0, -0.70711, 0, 0.70711]
-            """
-            T_head_link2_to_head_cam = np.eye(4)
-            T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
-            # T_head_link2_to_head_cam[:3, :3] = R.from_euler(
-            #     'xyz', [-180.0, -90.0, 0.0], degrees=True
-            # ).as_matrix()  # Rotation in XYZ order
-            T_head_link2_to_head_cam[:3, :3] = R.from_quat(
-                [0.0, -0.70711, 0, 0.70711], scalar_first=True
-            ).as_matrix()
-
-
-            # convert pose from real cam coord to head link2 coord
-            T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4_sim_cam_base
-    
-
-            # Get the end-effector pose in the arm base frame
-            # T_ee_pose_arm_base_frame_wa = self.coord_transformer.transform_pose(
-            #     T_ee_pose_in_headlink2_coord, "head_link2", "arm_base_link", joint_values=head_joint_cfg
-            # )
-            # head_angles = [head_joint_cfg.get("idx11_head_joint1", 0.0), head_joint_cfg.get("idx12_head_joint2", 0.0)]
-            # T_arm_base_link_to_head_link2 = self.head_ik_solver.compute_fk(head_angles)
-            # T_ee_pose_arm_base_frame2 = T_arm_base_link_to_head_link2 @ T_ee_pose_in_headlink2_coord
-            T_headlink2_to_armbase = self.coord_transformer.relative_transform("head_link2", "arm_base_link", head_joint_cfg)
-            T_ee_pose_arm_base_frame = np.linalg.inv(T_headlink2_to_armbase) @ T_ee_pose_in_headlink2_coord
-
-            # """IN USD for iros_pack_in_the_supermarket:
-            # arm_base_link:
-            # tx, ty, tz: [0.2835, 0.0, 1.21263]
-            # rx, ry, rz(degree): [0.0, 29.999, 0.0]
-
-            # head_link2:
-            # tx, ty, tz: [0.42504, 0.0, 1.35731]
-            # rx, ry, rz(degree): [-90.0, 0.0, 54.99]
-            # """
-            # T_arm_base_link_in_usd = np.eye(4)
-            # T_arm_base_link_in_usd[:3, 3] = np.array([0.2835, 0.0, 1.21263])  # Translation
-            # T_arm_base_link_in_usd[:3, :3] = R.from_euler(
-            #     'xyz', [0.0, 29.999, 0.0], degrees=True
-            # ).as_matrix()  # Rotation in XYZ order
-
-            # T_head_link2_in_usd = np.eye(4)
-            # T_head_link2_in_usd[:3, 3] = np.array([0.42504, 0.0, 1.35731])  # Translation
-            # T_head_link2_in_usd[:3, :3] = R.from_euler(
-            #     'xyz', [-90.0, 0.0, 54.99], degrees=True
-            # ).as_matrix()  # Rotation in XYZ order
-
-            # # Convert the pose from head link2 coord to arm base frame
-            # T_arm_base_to_head_link2_in_usd = np.linalg.inv(T_arm_base_link_in_usd) @ T_head_link2_in_usd
-
-            # T_ee_pose_arm_base_frame = T_arm_base_to_head_link2_in_usd @ T_ee_pose_in_headlink2_coord
-
             T_ee_pose_arm_base_frame_list.append(T_ee_pose_arm_base_frame)
         
         # Got ee poses in arm base frame, now solve IK for each pose
@@ -562,6 +470,96 @@ class EEtoJointProcessor:
         # joint_angles = np.zeros(7)  # Placeholder for the actual joint angles
 
         return joint_angles_array
+
+    def _get_current_ee_pose_camera_mode(self, arm: str, T_left_ee_armbase, T_right_ee_armbase, head_joint_cfg):
+        """
+        Get current end-effector pose in camera coordinates (original behavior).
+        """
+         # since URDF only have head_link2 but not cam link so that we first transform to head_link2
+        # then transform to head cam link
+        
+        # Convert into head cam coord frame
+        if arm == "left":
+            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_left_ee_armbase
+        else:  # arm == "right"
+            T_armbase_to_headlink2 = self.coord_transformer.relative_transform("arm_base_link", "head_link2", head_joint_cfg)
+            T_ee_pose_in_headlink2_coord = np.linalg.inv(T_armbase_to_headlink2) @ T_right_ee_armbase
+            
+        """Head_Came in head_link2 coord
+
+        tx, ty, tz: [0.0858, -0.04119, 0.0]
+
+        rx, ry, rz(degree): [-180.0, -90.0, 0.0]
+        
+        rw, rx, ry, rz: [0.0, -0.70711, 0, 0.70711]"""
+        # Transform to head camera coordinates
+        T_head_link2_to_head_cam = np.eye(4)
+        T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
+        T_head_link2_to_head_cam[:3, :3] = R.from_quat(
+            [0.0, -0.70711, 0, 0.70711], scalar_first=True
+        ).as_matrix()
+
+        T_ee_pose_in_headcam_coord = np.linalg.inv(T_head_link2_to_head_cam) @ T_ee_pose_in_headlink2_coord
+        
+        # Convert from sim cam to real cam coordinates
+        T_ee_pose_in_real_headcam_coord = self.T_obj_in_simcam_to_T_obj_in_realcam(T_obj_in_simcam=T_ee_pose_in_headcam_coord)
+
+        curr_ee_rot = T_ee_pose_in_real_headcam_coord[:3, :3]  # [3x3] rotation matrix
+        curr_ee_trans = T_ee_pose_in_real_headcam_coord[:3, 3]  # [tx, ty, tz]
+        
+        return curr_ee_rot, curr_ee_trans
+    
+    def _get_current_ee_pose_robot_base_mode(self, arm: str, T_left_ee_armbase, T_right_ee_armbase):
+        """
+        Get current end-effector pose in robot base coordinates (new behavior).
+        """
+        if arm == "left":
+            T_ee_armbase = T_left_ee_armbase
+        else:  # arm == "right"
+            T_ee_armbase = T_right_ee_armbase
+        
+        # Transform from arm base to robot base coordinates
+        T_armbase_to_robotbase = self.coord_transformer.relative_transform("arm_base_link", "base_link")
+        T_ee_robotbase = T_armbase_to_robotbase @ T_ee_armbase
+        
+        curr_ee_rot = T_ee_robotbase[:3, :3]  # [3x3] rotation matrix
+        curr_ee_trans = T_ee_robotbase[:3, 3]  # [tx, ty, tz]
+        
+        return curr_ee_rot, curr_ee_trans
+    
+    def _transform_pose_camera_to_arm_base(self, pose_4x4, head_joint_cfg):
+        """
+        Transform pose from camera coordinates to arm base frame (original behavior).
+        """
+        # Convert pose from real cam to sim cam coord
+        pose_4x4_sim_cam_base = self.realcam_to_simcam(T_obj_in_realcam=pose_4x4)
+
+        # Transform to head_link2 coordinates
+        T_head_link2_to_head_cam = np.eye(4)
+        T_head_link2_to_head_cam[:3, 3] = np.array([0.0858, -0.04119, 0.0])  # Translation
+        T_head_link2_to_head_cam[:3, :3] = R.from_quat(
+            [0.0, -0.70711, 0, 0.70711], scalar_first=True
+        ).as_matrix()
+
+        # Convert pose from real cam coord to head link2 coord
+        T_ee_pose_in_headlink2_coord = T_head_link2_to_head_cam @ pose_4x4_sim_cam_base
+
+        # Get the end-effector pose in the arm base frame
+        T_headlink2_to_armbase = self.coord_transformer.relative_transform("head_link2", "arm_base_link", head_joint_cfg)
+        T_ee_pose_arm_base_frame = np.linalg.inv(T_headlink2_to_armbase) @ T_ee_pose_in_headlink2_coord
+
+        return T_ee_pose_arm_base_frame
+    
+    def _transform_pose_robot_base_to_arm_base(self, pose_4x4):
+        """
+        Transform pose from robot base coordinates to arm base frame (new behavior).
+        """
+        # Transform from robot base to arm base coordinates
+        T_robotbase_to_armbase = self.coord_transformer.relative_transform("base_link", "arm_base_link")
+        T_ee_pose_arm_base_frame = T_robotbase_to_armbase @ pose_4x4
+        
+        return T_ee_pose_arm_base_frame
 
     def realcam_to_simcam(
         self,

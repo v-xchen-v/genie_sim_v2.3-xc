@@ -286,6 +286,17 @@ policy:
   # 19040  # Current: no aug, step~30k, new sim dat
   # 20020: no aug, step~20k, new sim data, batchsize=1k
 
+  # Coordinate mode configuration (model-dependent)
+  coordinate_mode: "camera"  # Options: "camera", "robot_base"
+  
+  # Mode descriptions:
+  # - "camera": Transform through camera coordinates (original behavior)
+  #   VLA poses → camera coordinates → arm base → joint angles
+  #   Use this for models trained with camera-relative poses
+  # - "robot_base": Work directly in robot base coordinates (new behavior)  
+  #   VLA poses → robot base coordinates → arm base → joint angles
+  #   Use this for models trained with robot-relative poses
+
 # # =========================================================================
 # # SIMULATION CONFIGURATION
 # # =========================================================================
