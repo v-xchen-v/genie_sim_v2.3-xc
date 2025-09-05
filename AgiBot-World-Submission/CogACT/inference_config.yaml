@@ -48,6 +48,25 @@ image_processing:
 # TASK EXECUTION CONFIGURATION
 # =========================================================================
 task_execution:
+  # Coordinate mode configuration
+  coordinate_modes:
+    # Default coordinate mode for transformations
+    default: "camera"  # Options: "camera", "robot_base"
+    
+    # Task-specific coordinate modes (overrides default)
+    task_specific:
+      # Example task configurations:
+      # iros_pack_in_the_supermarket: "robot_base"
+      # iros_restock_supermarket_items: "camera"
+      # iros_pickup_items_from_the_freezer: "robot_base"
+      # Add task-specific coordinate modes here when needed
+    
+    # Mode descriptions:
+    # - "camera": Transform through camera coordinates (original behavior)
+    #   VLA poses → camera coordinates → arm base → joint angles
+    # - "robot_base": Work directly in robot base coordinates (new behavior)  
+    #   VLA poses → robot base coordinates → arm base → joint angles
+
   # Default execution steps (16-step trajectory)
   default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   

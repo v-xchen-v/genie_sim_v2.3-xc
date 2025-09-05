@@ -153,6 +153,46 @@ class InferenceConfig:
         
         return steps_config
     
+    def get_coordinate_mode(self, task_name: str = None) -> str:
+        """
+        Get coordinate mode for a specific task.
+        
+        Args:
+            task_name: Name of the task. If None, returns default mode.
+            
+        Returns:
+            Coordinate mode string: "camera" or "robot_base"
+        """
+        coord_config = self.config['task_execution']['coordinate_modes']
+        
+        if task_name is None:
+            return coord_config['default']
+        
+        # Check for task-specific configuration
+        task_specific = coord_config.get('task_specific', {})
+        return task_specific.get(task_name, coord_config['default'])
+    
+    # def set_coordinate_mode(self, task_name: str, mode: str):
+    #     """
+    #     Set coordinate mode for a specific task (runtime override).
+        
+    #     Args:
+    #         task_name: Name of the task
+    #         mode: Coordinate mode ("camera" or "robot_base")
+    #     """
+    #     if mode not in ["camera", "robot_base"]:
+    #         raise ValueError(f"Invalid coordinate mode: {mode}. Must be 'camera' or 'robot_base'.")
+        
+    #     # Ensure task_specific section exists
+    #     if 'task_specific' not in self.config['task_execution']['coordinate_modes']:
+    #         self.config['task_execution']['coordinate_modes']['task_specific'] = {}
+        
+    #     self.config['task_execution']['coordinate_modes']['task_specific'][task_name] = mode
+    
+    # def get_coordinate_modes_config(self) -> Dict[str, Any]:
+    #     """Get complete coordinate modes configuration."""
+    #     return self.config['task_execution']['coordinate_modes']
+    
     def get_gripper_config(self) -> Dict[str, Any]:
         """Get complete gripper configuration."""
         return self.config['task_execution']['gripper_config']
