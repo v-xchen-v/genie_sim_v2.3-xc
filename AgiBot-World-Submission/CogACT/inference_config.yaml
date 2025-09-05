@@ -275,8 +275,9 @@ policy:
   # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
   # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
-  port: 24025 # robot base, step 20k
+  # port: 24025 # robot base, step 20k
   # port: 24015 # robot base, step 15k
+  port: 25015 # camera base, step 15k, with depth
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
@@ -288,7 +289,7 @@ policy:
   # 20020: no aug, step~20k, new sim data, batchsize=1k
 
   # Coordinate mode configuration (model-dependent)
-  coordinate_mode: "robot_base"  # Options: "camera", "robot_base"
+  coordinate_mode: "camera"  # Options: "camera", "robot_base"
   
   # Mode descriptions:
   # - "camera": Transform through camera coordinates (original behavior)
@@ -299,7 +300,7 @@ policy:
   #   Use this for models trained with robot-relative poses
 
   # Image input strategy configuration (model-dependent)
-  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
+  image_strategy: "rgb_depth"  # Options: "rgb_only", "rgb_depth"
   
   # Strategy descriptions:
   # - "rgb_only": Use only RGB images as input (original behavior)

@@ -141,9 +141,9 @@ class VLAInputProcessor:
                     Image.fromarray(obs_dict["images"]["cam_top"]),
                     Image.fromarray(obs_dict["images"]["head_left"]),
                     Image.fromarray(obs_dict["images"]["head_right"]),
-                    Image.fromarray(obs_dict["images"]["cam_top_depth"]),
-                    Image.fromarray(obs_dict["images"]["head_left_depth"]),
-                    Image.fromarray(obs_dict["images"]["head_right_depth"]),
+                    obs_dict["images"]["cam_top_depth"],
+                    obs_dict["images"]["head_left_depth"],
+                    obs_dict["images"]["head_right_depth"],
                 ],
                 "task_description": obs_dict["task_description"],
                 "robot_state": obs_dict["robot_state"],
@@ -170,7 +170,10 @@ class VLAInputProcessor:
             cam_top_depth_img = processed_depth_images[0]
             head_left_depth_img = processed_depth_images[1]
             head_right_depth_img = processed_depth_images[2]
-        
+            # print(f"type of cam_top_depth_img: {type(cam_top_depth_img)}, shape: {cam_top_depth_img.shape}, dtype: {cam_top_depth_img.dtype}")
+            # print(f"type of head_left_depth_img: {type(head_left_depth_img)}, shape: {head_left_depth_img.shape}, dtype: {head_left_depth_img.dtype}")
+            # print(f"type of head_right_depth_img: {type(head_right_depth_img)}, shape: {head_right_depth_img.shape}, dtype: {head_right_depth_img.dtype}")
+                    
         # Preprocess task instruction
         processed_task_instruction = self.preprocess_instruction(self.task_instruction, self.curr_task_substep_index)
         
