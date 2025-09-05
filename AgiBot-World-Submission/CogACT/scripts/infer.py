@@ -227,11 +227,13 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
     # Get coordinate mode from policy configuration
     coord_mode = config.get_coordinate_mode()
+    image_strategy = config.get_image_strategy()
     logger.info(f"🔧 Using coordinate mode: {coord_mode}")
+    logger.info(f"🖼️ Using image strategy: {image_strategy}")
 
     # Initialize ee_to_joint_processor at module level with coordinate mode
     ee_to_joint_processor = EEtoJointProcessor(logger=logger, coord_mode=coord_mode)
-    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
+    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode, image_strategy=image_strategy)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()
     current_path = os.getcwd()
@@ -304,15 +306,15 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     total_substeps = get_num_substeps(task_name)
     logger.info(f"📊 Task '{task_name}' has {total_substeps} substeps")
     
-    # Log depth image configuration
-    if config.depth_images_enabled:
+    # Log image strategy configuration
+    if image_strategy == "rgb_depth":
         depth_cameras = config.get_depth_cameras_config()
         enabled_cameras = [cam for cam, enabled in depth_cameras.items() if enabled]
         logger.info(f"📷 Depth images ENABLED for cameras: {enabled_cameras}")
         if config.depth_save_debug_images:
             logger.info(f"🎨 Depth debug images will be saved with colormap: {config.depth_colormap}")
     else:
-        logger.info("📷 Depth images DISABLED - not fetching depth data")
+        logger.info("📷 Depth images DISABLED - using RGB-only strategy")
     
     # Track whether we've returned to initial pose for this cycle
     returned_to_initial_this_cycle = False
@@ -333,12 +335,12 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         img_l_raw = sim_ros_node.get_img_left_wrist()
         img_r_raw = sim_ros_node.get_img_right_wrist()
         
-        # ADD depth images if needed - controlled by configuration
+        # ADD depth images if needed - controlled by image strategy
         depth_img_h_raw = None
         depth_img_l_raw = None
         depth_img_r_raw = None
         
-        if config.depth_images_enabled:
+        if image_strategy == "rgb_depth":
             depth_cameras = config.get_depth_cameras_config()
             if depth_cameras.get('head', True):
                 depth_img_h_raw = sim_ros_node.get_depth_img_head()
@@ -351,7 +353,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
         
         # Check if we have valid images and joint state
         depth_check_passed = True
-        if config.depth_images_enabled:
+        if image_strategy == "rgb_depth":
             depth_cameras = config.get_depth_cameras_config()
             if depth_cameras.get('head', True) and depth_img_h_raw is None:
                 depth_check_passed = False
@@ -395,7 +397,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
                 # Process depth images if enabled
                 depth_imgs_processed = {}
-                if config.depth_images_enabled:
+                if image_strategy == "rgb_depth":
                     depth_cameras = config.get_depth_cameras_config()
                     
                     if depth_cameras.get('head', True) and depth_img_h_raw is not None:
@@ -456,14 +458,19 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                     is_initialized = True
                     logger.info(f"📝 Recorded initial joint angles: {initial_joint_angles}")
 
-                model_input = input_processor.process(
-                    img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
-                )
-                # TODO: If model requires depth images, modify VLAInputProcessor.process() to accept depth_imgs_processed
-                # model_input = input_processor.process(
-                #     img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg,
-                #     depth_images=depth_imgs_processed if config.depth_images_enabled else None
-                # )
+                if image_strategy == "rgb_depth":
+                    # Use depth images
+                    model_input = input_processor.process(
+                        img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg,
+                        img_depth_h=depth_imgs_processed.get('head'),
+                        img_depth_l=depth_imgs_processed.get('left_wrist'),
+                        img_depth_r=depth_imgs_processed.get('right_wrist')
+                    )
+                else:
+                    # RGB only
+                    model_input = input_processor.process(
+                        img_h, img_l, img_r, lang, state, curr_task_substep_index, head_joint_cfg=head_joint_cfg
+                    )
                 # obs = get_observations(img_h, img_l, img_r, lang, state)
                 # if cfg.with_proprio:
                 #     action = policy.step(img_h, img_l, img_r, lang, state)

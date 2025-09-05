@@ -11,25 +11,24 @@ image_processing:
   
   # Depth image handling configuration
   depth_images:
-    enabled: false  # Set to true when model needs depth images as input
     save_debug_images: false  # Save depth images to disk for debugging
     colormap: "turbo"  # Colormap for depth visualization: "turbo", "viridis", "plasma", etc.
     depth_range:
       min_val: 0.256  # Minimum depth value in meters for normalization
       max_val: 1.024  # Maximum depth value in meters for normalization
     
-    # Which depth cameras to use (when enabled=true)
+    # Which depth cameras to use (when policy.image_strategy="rgb_depth")
     cameras:
       head: true      # Use head depth camera
       left_wrist: true   # Use left wrist depth camera  
       right_wrist: true  # Use right wrist depth camera
     
     # Notes:
-    # - When enabled=false: depth images are not fetched at all (saves bandwidth)
-    # - When enabled=true: depth images are fetched and processed 
+    # - Depth image fetching is controlled by policy.image_strategy setting
+    # - When image_strategy="rgb_only": depth images are not fetched (saves bandwidth)
+    # - When image_strategy="rgb_depth": depth images are fetched and processed 
     # - save_debug_images=true: saves colorized depth images to disk for debugging
     # - Depth images are processed to float32 format in meters
-    # - To use depth images in the model, modify VLAInputProcessor.process() method
   
 #   log_observations: false  # Whether to log observations during processing
   
@@ -307,7 +306,7 @@ policy:
   # - "rgb_depth": Use RGB + depth images as input (new behavior)
   #   Input: [img_h, img_l, img_r, depth_h, depth_l, depth_r] (3 RGB + 3 depth images)
   #   Use this for models trained with both RGB and depth images
-  #   Note: Requires depth_images.enabled to be true in image_processing section
+  #   Note: Depth image processing is automatically enabled when using "rgb_depth"
 
 # # =========================================================================
 # # SIMULATION CONFIGURATION
@@ -340,16 +339,17 @@ logging:
 # =========================================================================
 # To enable depth image processing for a model that requires depth input:
 # 
-# 1. Set image_processing.depth_images.enabled to true
-# 2. Set policy.image_strategy to "rgb_depth"
-# 3. Optionally enable save_debug_images for debugging
-# 4. Configure which cameras to use
-# 5. VLAInputProcessor will automatically handle depth image processing
+# 1. Set policy.image_strategy to "rgb_depth"
+# 2. Optionally enable save_debug_images for debugging
+# 3. Configure which cameras to use
+# 4. VLAInputProcessor will automatically handle depth image processing
 #
 # Example configuration:
+# policy:
+#   image_strategy: "rgb_depth"  # Use RGB + depth images
+# 
 # image_processing:
 #   depth_images:
-#     enabled: true
 #     save_debug_images: true  # For debugging
 #     colormap: "turbo"
 #     depth_range:
@@ -359,6 +359,3 @@ logging:
 #       head: true
 #       left_wrist: true
 #       right_wrist: true
-# 
-# policy:
-#   image_strategy: "rgb_depth"  # Use RGB + depth images
