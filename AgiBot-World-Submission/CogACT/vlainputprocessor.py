@@ -322,8 +322,8 @@ class VLAInputProcessor:
             T_armbase_to_robotbase = self.coord_transformer.relative_transform("arm_base_link", "base_link")
             T_left_ee_final =  np.linalg.inv(T_armbase_to_robotbase) @ armbase_T_left_ee_final
             T_right_ee_final = np.linalg.inv(T_armbase_to_robotbase) @ armbase_T_right_ee_final
-            self.logger.info(f"Left EE in robot base coord: {T_left_ee_final}")
-            self.logger.info(f"Right EE in robot base coord: {T_right_ee_final}")
+            self.logger.debug(f"Left EE in robot base coord: {T_left_ee_final}")
+            self.logger.debug(f"Right EE in robot base coord: {T_right_ee_final}")
 
         # Decompose the transformation matrices to get translation and rotation
         left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_final)

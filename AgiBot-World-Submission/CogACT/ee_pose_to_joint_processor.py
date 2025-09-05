@@ -526,7 +526,7 @@ class EEtoJointProcessor:
         curr_ee_rot = T_ee_to_robotbase[:3, :3]  # [3x3] rotation matrix
         curr_ee_trans = T_ee_to_robotbase[:3, 3]  # [tx, ty, tz]
 
-        self.logger.info(f"Current {arm} end-effector pose in robot base frame: \nRotation:\n{curr_ee_rot}\nTranslation:\n{curr_ee_trans}")
+        self.logger.debug(f"Current {arm} end-effector pose in robot base frame: \nRotation:\n{curr_ee_rot}\nTranslation:\n{curr_ee_trans}")
 
         return curr_ee_rot, curr_ee_trans
     
