@@ -51,8 +51,8 @@ task_execution:
   default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
   
   # Task-specific execution steps
-  task_execution_steps: # works for 19xxx
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7]
+  task_execution_steps:
+    iros_pack_in_the_supermarket: [0]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
       # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
@@ -271,10 +271,12 @@ ros:
 policy:
   # API settings
   ip: "10.190.172.212"
-  port: 19015 # no aug, step 15k
-  port: 19020 # no aug, step 20k
+  # port: 19015 # no aug, step 15k
+  # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
   # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
+  # port: 24020 # robot base, step 20k
+  port: 24020 # robot base, step 20k
   
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
@@ -286,7 +288,7 @@ policy:
   # 20020: no aug, step~20k, new sim data, batchsize=1k
 
   # Coordinate mode configuration (model-dependent)
-  coordinate_mode: "camera"  # Options: "camera", "robot_base"
+  coordinate_mode: "robot_base"  # Options: "camera", "robot_base"
   
   # Mode descriptions:
   # - "camera": Transform through camera coordinates (original behavior)

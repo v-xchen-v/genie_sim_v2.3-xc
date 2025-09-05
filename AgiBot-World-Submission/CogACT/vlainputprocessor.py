@@ -26,12 +26,13 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera", image_strategy="rgb_only"):        
+    def __init__(self, logger=None, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera", image_strategy="rgb_only"):        
         
         self.log_obs = log_obs
         self.resize_mode = resize_mode
         self.coord_mode = coord_mode  # "camera" or "robot_base"
         self.image_strategy = image_strategy  # "rgb_only" or "rgb_depth"
+        self.logger = logger
         
         if self.coord_mode not in ["camera", "robot_base"]:
             raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
@@ -315,13 +316,15 @@ class VLAInputProcessor:
         elif self.coord_mode == "robot_base":
             # Keep in robot base coordinates (new behavior)
             # arm-based ee final
-            T_left_ee_final = T_left_ee_pose_in_armbase_coord[0]
-            T_right_ee_final = T_right_ee_pose_in_armbase_coord[0]
+            armbase_T_left_ee_final = T_left_ee_pose_in_armbase_coord[0]
+            armbase_T_right_ee_final = T_right_ee_pose_in_armbase_coord[0]
             # transfrom ee final from arm base to robot base
             T_armbase_to_robotbase = self.coord_transformer.relative_transform("arm_base_link", "base_link")
-            T_left_ee_final = T_armbase_to_robotbase @ T_left_ee_final
-            T_right_ee_final = T_armbase_to_robotbase @ T_right_ee_final
-        
+            T_left_ee_final =  np.linalg.inv(T_armbase_to_robotbase) @ armbase_T_left_ee_final
+            T_right_ee_final = np.linalg.inv(T_armbase_to_robotbase) @ armbase_T_right_ee_final
+            self.logger.info(f"Left EE in robot base coord: {T_left_ee_final}")
+            self.logger.info(f"Right EE in robot base coord: {T_right_ee_final}")
+
         # Decompose the transformation matrices to get translation and rotation
         left_ee_translation, left_ee_rotation = self.coord_transformer.decompose_transform(T_left_ee_final)
         right_ee_translation, right_ee_rotation = self.coord_transformer.decompose_transform(T_right_ee_final)

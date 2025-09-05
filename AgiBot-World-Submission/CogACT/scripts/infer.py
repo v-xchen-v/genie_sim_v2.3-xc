@@ -233,7 +233,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
 
     # Initialize ee_to_joint_processor at module level with coordinate mode
     ee_to_joint_processor = EEtoJointProcessor(logger=logger, coord_mode=coord_mode)
-    input_processor = VLAInputProcessor(log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode, image_strategy=image_strategy)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
+    input_processor = VLAInputProcessor(logger=logger, log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode, image_strategy=image_strategy)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()
     current_path = os.getcwd()
@@ -548,7 +548,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 #     else:
                 #         execution_steps = execution_steps[:8]  # Use first 8 steps for placing into box
 
-                # elif task_name == "iros_pickup_items_from_the_freezer":
+                # elif task_name == "iros_pickup_items_from_the_fr'ee'zer":
                 #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
                 #     # execution_steps = [0, 1, 2, 3]
                 #     # execution_steps = [0, 1, 2, 3, 4, 5, 6, 7]
