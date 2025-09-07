@@ -276,8 +276,8 @@ ros:
 # =========================================================================
 policy:
   # API settings
-  # ip: "10.190.172.212"
-  ip: "10.209.224.193" # 483
+  ip: "10.190.172.212"
+  # ip: "10.209.224.193"
   # port: 19015 # no aug, step 15k
   # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
@@ -288,7 +288,7 @@ policy:
   # port: 25020 # camera base, step 20k, with depth
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
-  port: 28020 # fixed normalization issue, camera base, with depth, step ~30k
+  port: 26020 # fixed normalization issue, camera base, with depth, step ~30k
 
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
