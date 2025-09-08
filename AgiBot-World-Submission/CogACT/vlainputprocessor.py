@@ -123,6 +123,7 @@ class VLAInputProcessor:
             # Log observations if required
             self._log_observations(obs_dict, log_dir="./obs_logs")
        
+        self.logger.info(f"Image strategy: {self.image_strategy}")
         if self.image_strategy == "rgb_only":
             # Strategy 1: RGB images only (original behavior)
             input_data = {

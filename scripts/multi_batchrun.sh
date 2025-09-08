@@ -178,8 +178,9 @@ main() {
     # Format: "run_id:config_file:task_name:model_name"
     # You can modify this array to add/remove/change configurations
     configs=(
-        "1:inference_config.19020.yaml:all:CogACT"
-        # "2:inference_config.24025.yaml:all:CogACT"
+        "1:inference_config.28015.yaml:all:CogACT"
+        "2:inference_config.27015.yaml:all:CogACT"
+        "3:inference_config.26015.yaml:all:CogACT"
         # "3:inference_config.24xxx.yaml:all:CogACT"
         # "4:inference_config.19xxx.yaml:all:CogACT"
     )
