@@ -301,22 +301,22 @@ policy:
   # port: 25040 # camera base, step 40k, with depth
   port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
 
-  # Local inference settings (used when inference_mode="local")
-  local_inference:
-    checkpoint_path: "/path/to/your/model/checkpoint.pth"  # Path to model checkpoint file
-    model_config:
-      model_type: "cogact_model"  # Type of model architecture
-      input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
-      output_dim: 7  # Output action dimension
-      # Add other model-specific configuration here
+  # # Local inference settings (used when inference_mode="local")
+  # local_inference:
+  #   checkpoint_path: "/path/to/your/model/checkpoint.pth"  # Path to model checkpoint file
+  #   model_config:
+  #     model_type: "cogact_model"  # Type of model architecture
+  #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
+  #     output_dim: 7  # Output action dimension
+  #     # Add other model-specific configuration here
     
-    # Performance settings
-    device: "cuda"  # Device for inference: "cuda", "cpu", "auto"
-    batch_size: 1  # Batch size for inference (typically 1 for real-time)
+  #   # Performance settings
+  #   device: "cuda"  # Device for inference: "cuda", "cpu", "auto"
+  #   batch_size: 1  # Batch size for inference (typically 1 for real-time)
     
-    # Optional: Model optimization settings
-    # use_jit: false  # Use TorchScript JIT compilation
-    # use_half_precision: false  # Use half precision (FP16) for faster inference
+  #   # Optional: Model optimization settings
+  #   # use_jit: false  # Use TorchScript JIT compilation
+  #   # use_half_precision: false  # Use half precision (FP16) for faster inference
 
   # Alternative ports (for reference):
   # 17030: no aug, step 30k

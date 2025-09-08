@@ -124,8 +124,7 @@ task_execution:
           frames_16: 1
         iros_make_a_sandwich:
           frames_16: 1
-        iros_stamp_the_seal:
-          frames_32: -5
+
 
     
     # # Gripper signal filter parameters
@@ -280,19 +279,15 @@ policy:
   
   # API settings
   ip: "10.190.172.212"
-  # ip: "10.209.224.193"
   # port: 19015 # no aug, step 15k
   # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
   # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
   # port: 24025 # robot base, step 20k
   # port: 24015 # robot base, step 15k
-  # port: 25015 # camera base, step 15k, with depth
-  # port: 25020 # camera base, step 20k, with depth
-  # port: 25030 # camera base, step 30k, with depth
-  # port: 25040 # camera base, step 40k, with depth
-  port: 26020 # fixed normalization issue, camera base, with depth, step ~30k
-
+  port: 25015 # camera base, step 15k, with depth
+  # port: 25020 # camera base, step 15k, with depth
+  
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
   # 17040: no aug, step 40k
@@ -314,7 +309,7 @@ policy:
   #   Use this for models trained with robot-relative poses
 
   # Image input strategy configuration (model-dependent)
-  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
+  image_strategy: "rgb_depth"  # Options: "rgb_only", "rgb_depth"
   
   # Strategy descriptions:
   # - "rgb_only": Use only RGB images as input (original behavior)

@@ -269,6 +269,9 @@ ros:
 # POLICY CONFIGURATION
 # =========================================================================
 policy:
+  # Inference mode configuration
+  inference_mode: "api"  # Options: "api", "local"
+  
   # API settings
   ip: "10.190.172.212"
   # port: 19015 # no aug, step 15k
