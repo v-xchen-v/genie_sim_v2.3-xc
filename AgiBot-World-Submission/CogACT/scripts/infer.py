@@ -14,7 +14,8 @@ from genie_sim_ros import SimROSNode
 from cv_bridge import CvBridge
 import numpy as np
 from PIL import Image
-from cogact_policy import CogActAPIPolicy
+from cogact_policy import CogActPolicy
+from config_loader import InferenceConfig
 from vlainputprocessor import VLAInputProcessor
 from kinematics.urdf_coordinate_transformer import URDFCoordinateTransformer
 from kinematics.g1_relax_ik import G1RelaxSolver
@@ -653,30 +654,34 @@ def get_observations(img_h, img_l, img_r, lang, joint_positions):
     
     return dummy_obs
     
-def get_policy_wo_state():
-    PORT=15020 
-    ip = "10.190.172.212"
-    policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
-    return policy  # Placeholder for actual policy loading logic
+def create_policy(config: InferenceConfig):
+    """
+    Create and return a policy instance based on configuration.
+    
+    Returns:
+        CogActPolicy: Configured policy instance
+    """
+    from cogact_policy import CogActPolicy
+    
+    inference_mode = config.inference_mode
+    if inference_mode == "api":
+        return CogActPolicy(
+            inference_mode="api",
+            ip_address=config.policy_ip,
+            port=config.policy_port
+        )
+    # elif inference_mode == "local":
+    #     return CogActPolicy(
+    #         inference_mode="local",
+    #         checkpoint_path=config.local_checkpoint_path,
+    #         model_config=config.local_model_config
+    #     )
+    else:
+        raise ValueError(f"Unsupported inference mode: {inference_mode}")
 
 def get_policy():
-    # # PORT=14020 
-    # PORT=14030 # 08/15/2025 tested
-    # PORT=15030 # predict 1 step
-    # PORT=16030 # predict 3 step
-
-    # # Split data by ADC timepoint and object z > threshold for pick
-    # PORT=17020 # no aug, step 20k
-    # PORT=17030 # no aug, step 30k
-    # PORT=17040 # no aug, step 40k
-    # PORT=18020 # aug, step~20k
-
-    # # new Sim data
-    PORT=config.policy_port # no aug, step~20k
-
-    ip = config.policy_ip
-    policy = CogActAPIPolicy(ip_address=ip, port=PORT)  # Adjust IP and port as needed
-    return policy  # Placeholder for actual policy loading logic
+    """Get policy instance using configuration settings"""
+    return create_policy(config)
 
 def interpolate_joints(current_joints, target_joints, num_steps=5):
     """

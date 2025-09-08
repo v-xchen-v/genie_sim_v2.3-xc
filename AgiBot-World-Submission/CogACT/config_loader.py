@@ -307,6 +307,11 @@ class InferenceConfig:
     # =========================================================================
     
     @property
+    def inference_mode(self) -> str:
+        """Get inference mode."""
+        return self.config['policy'].get('inference_mode', 'api')
+    
+    @property
     def policy_ip(self) -> str:
         """Get policy API IP address."""
         return self.config['policy']['ip']
@@ -315,6 +320,26 @@ class InferenceConfig:
     def policy_port(self) -> int:
         """Get policy API port."""
         return self.config['policy']['port']
+    
+    # @property
+    # def local_checkpoint_path(self) -> str:
+    #     """Get local model checkpoint path."""
+    #     return self.config['policy']['local_inference']['checkpoint_path']
+    
+    # @property
+    # def local_model_config(self) -> Dict[str, Any]:
+    #     """Get local model configuration."""
+    #     return self.config['policy']['local_inference']['model_config']
+    
+    # @property
+    # def local_device(self) -> str:
+    #     """Get device for local inference."""
+    #     return self.config['policy']['local_inference'].get('device', 'auto')
+    
+    # @property
+    # def local_batch_size(self) -> int:
+    #     """Get batch size for local inference."""
+    #     return self.config['policy']['local_inference'].get('batch_size', 1)
     
     # # =========================================================================
     # # SIMULATION CONFIGURATION

@@ -275,7 +275,18 @@ ros:
 # POLICY CONFIGURATION
 # =========================================================================
 policy:
-  # API settings
+  # Inference mode configuration
+  inference_mode: "api"  # Options: "api", "local"
+  
+  # Mode descriptions:
+  # - "api": Use remote API inference (original behavior)
+  #   Sends requests to a remote inference server
+  #   Requires ip and port configuration
+  # - "local": Use local model inference (new behavior)
+  #   Loads and runs model locally from checkpoint
+  #   Requires checkpoint_path and optional model_config
+  
+  # API settings (used when inference_mode="api")
   ip: "10.190.172.212"
   # ip: "10.209.224.193" # 483
   # port: 19015 # no aug, step 15k
@@ -289,6 +300,23 @@ policy:
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
   port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
+
+  # # Local inference settings (used when inference_mode="local")
+  # local_inference:
+  #   checkpoint_path: "/path/to/your/model/checkpoint.pth"  # Path to model checkpoint file
+  #   model_config:
+  #     model_type: "cogact_model"  # Type of model architecture
+  #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
+  #     output_dim: 7  # Output action dimension
+  #     # Add other model-specific configuration here
+    
+  #   # Performance settings
+  #   device: "cuda"  # Device for inference: "cuda", "cpu", "auto"
+  #   batch_size: 1  # Batch size for inference (typically 1 for real-time)
+    
+  #   # Optional: Model optimization settings
+  #   # use_jit: false  # Use TorchScript JIT compilation
+  #   # use_half_precision: false  # Use half precision (FP16) for faster inference
 
   # Alternative ports (for reference):
   # 17030: no aug, step 30k
