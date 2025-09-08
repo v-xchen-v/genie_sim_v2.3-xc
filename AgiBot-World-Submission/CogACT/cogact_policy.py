@@ -5,15 +5,22 @@ import json
 import requests
 import time
 import numpy as np
+import os
+from abc import ABC, abstractmethod
 
-class CogActAPIPolicy:
+class BaseCogActPolicy(ABC):
+    """Base class for CogAct policy implementations"""
+    
+    @abstractmethod
+    def step(self, img_list, task_description: str, robot_state: dict, image_format: str="JPEG", verbose: bool=False):
+        """Main inference method"""
+        pass
+
+class CogActAPIPolicy(BaseCogActPolicy):
     def __init__(self, ip_address, port):
         self.url = f"http://{ip_address}:{port}/api/inference"
-        pass
+        self.inference_mode = "api"
         
-    # def reset(self):
-    #     pass
-    
     def step(self, img_list, task_description: str, robot_state: dict, image_format: str="JPEG", verbose: bool=False):
         """
         Args:
