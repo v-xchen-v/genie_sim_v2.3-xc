@@ -193,3 +193,23 @@ class CogActAPIPolicy(BaseCogActPolicy):
         else:
             print("Failed to get a response from the API")
             print(response.text)
+
+class CogActPolicy:
+    """CogAct policy wrapper to choose between API and local inference modes"""
+    def __init__(self, inference_mode="api", ip_address="localhost", port=8000):
+        if inference_mode == "api":
+            self.policy = CogActAPIPolicy(ip_address, port)
+        # elif inference_mode == "local":
+        #     self.policy = CogActLocalPolicy(
+        #         checkpoint_path="/path/to/your/model/checkpoint.pth",  # Update this path
+        #         model_config={
+        #             "model_type": "your_model_type",
+        #             "input_size": [3, 224, 224],
+        #             "output_dim": 7
+        #         }
+        #     )
+        else:
+            raise ValueError("Unsupported inference mode. Use 'api'.")
+
+    def step(self, img_list, task_description: str, robot_state: dict=None, image_format: str="JPEG", verbose: bool=False):
+        return self.policy.step(img_list, task_description, robot_state, image_format, verbose)
