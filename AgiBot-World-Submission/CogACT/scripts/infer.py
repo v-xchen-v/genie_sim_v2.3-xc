@@ -479,7 +479,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # else:
                 # print(f"instruction: {input["task_description"]}")
                 action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
-                
+                logger.debug(f"Step {count} | Substep {curr_task_substep_index+1}/{total_substeps} | Action: {action}")
                 if action:                    
                     # Handle substep progression logic
                     task_advance_strategy = config.get_progression_strategy(task_name)
@@ -665,17 +665,19 @@ def create_policy(config: InferenceConfig):
     
     inference_mode = config.inference_mode
     if inference_mode == "api":
+        logging.info(f"Connecting to policy API at {config.policy_ip}:{config.policy_port}")
         return CogActPolicy(
             inference_mode="api",
             ip_address=config.policy_ip,
             port=config.policy_port
         )
-    # elif inference_mode == "local":
-    #     return CogActPolicy(
-    #         inference_mode="local",
-    #         checkpoint_path=config.local_checkpoint_path,
-    #         model_config=config.local_model_config
-    #     )
+    elif inference_mode == "local":
+        logging.info(f"Loading local policy from checkpoint: {config.local_checkpoint_path} with norm key: {config.unnorm_key}")
+        return CogActPolicy(
+            inference_mode="local",
+            saved_model_path=config.local_checkpoint_path,
+            unnorm_key=config.unnorm_key
+        )
     else:
         raise ValueError(f"Unsupported inference mode: {inference_mode}")
 
