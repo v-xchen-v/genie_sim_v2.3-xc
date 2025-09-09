@@ -282,7 +282,7 @@ ros:
 # =========================================================================
 policy:
   # Inference mode configuration
-  inference_mode: "api"  # Options: "api", "local"
+  inference_mode: "local"  # Options: "api", "local"
   
   # Mode descriptions:
   # - "api": Use remote API inference (original behavior)
@@ -294,7 +294,7 @@ policy:
   
   # API settings (used when inference_mode="api")
   # ip: "10.190.172.212"
-  ip: "10.209.224.193" # 483
+  # ip: "10.209.224.193" # 483
   # port: 19015 # no aug, step 15k
   # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
@@ -305,13 +305,13 @@ policy:
   # port: 25020 # camera base, step 20k, with depth
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
-  port: 28015 # fix casual pretrain, camera base, rgb only, step ~15k
+  # port: 28015 # fix casual pretrain, camera base, rgb only, step ~15k
   # port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
 
   # Local inference settings (used when inference_mode="local")
-  # local_inference:
-  #   checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
-  #   unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
+  local_inference:
+    checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+    unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
   #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
@@ -371,7 +371,7 @@ policy:
 # LOGGING AND RECORDING CONFIGURATION
 # =========================================================================
 logging:
-    enable_video_recording: true  # Enable video recording during inference
+    enable_video_recording: false  # Enable video recording during inference
 
 #   # Directory settings
 #   default_log_dir: "./inference_logs"
