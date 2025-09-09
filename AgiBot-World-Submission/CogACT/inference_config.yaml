@@ -303,7 +303,7 @@ policy:
 
   # Local inference settings (used when inference_mode="local")
   local_inference:
-    checkpoint_path: "checkpoints/port_19015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+    checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
     unnorm_key: "agibot_challenge_sim_v2_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
