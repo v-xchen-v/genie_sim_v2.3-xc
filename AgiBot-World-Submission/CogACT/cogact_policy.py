@@ -6,7 +6,23 @@ import requests
 import time
 import numpy as np
 import os
+import sys
+import pathlib
 from abc import ABC, abstractmethod
+
+# Import for local inference
+try:
+    # Add the inference scripts path to sys.path
+    current_dir = pathlib.Path(__file__).parent.resolve()
+    inference_dir = current_dir / "inference" / "scripts_vla" / "serving"
+    if inference_dir.exists() and str(inference_dir) not in sys.path:
+        sys.path.append(str(inference_dir))
+    
+    from direct_inference import CogACTInferencer
+    DIRECT_INFERENCE_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Direct inference not available: {e}")
+    DIRECT_INFERENCE_AVAILABLE = False
 
 class BaseCogActPolicy(ABC):
     """Base class for CogAct policy implementations"""
@@ -194,22 +210,144 @@ class CogActAPIPolicy(BaseCogActPolicy):
             print("Failed to get a response from the API")
             print(response.text)
 
+class CogACTLocalPolicy(BaseCogActPolicy):
+    """Local CogACT policy implementation using direct inference"""
+    
+    def __init__(
+        self,
+        saved_model_path: str,
+        unnorm_key: str = None,
+        image_size: list = [224, 224],
+        cfg_scale: float = 1.5,
+        num_ddim_steps: int = 10,
+        use_ddim: bool = True,
+        use_bf16: bool = True,
+        action_ensemble: bool = True,
+        adaptive_ensemble_alpha: float = 0.1,
+        action_ensemble_horizon: int = 2,
+        action_chunking: bool = False,
+        action_chunking_window: int = None,
+        device: str = "cuda",
+        verbose: bool = False,
+        **kwargs
+    ):
+        """
+        Initialize the local CogACT policy.
+        
+        Args:
+            saved_model_path: Path to the saved model directory
+            unnorm_key: Key for action normalization
+            image_size: Input image size [height, width]
+            cfg_scale: Classifier-free guidance scale
+            num_ddim_steps: Number of DDIM sampling steps
+            use_ddim: Whether to use DDIM sampling
+            use_bf16: Whether to use bfloat16 precision
+            action_ensemble: Whether to use action ensemble
+            adaptive_ensemble_alpha: Alpha parameter for adaptive ensemble
+            action_ensemble_horizon: Horizon for action ensemble
+            action_chunking: Whether to use action chunking
+            action_chunking_window: Window size for action chunking
+            device: Device to run inference on
+            verbose: Whether to print verbose information
+            **kwargs: Additional arguments passed to CogACTInferencer
+        """
+        if not DIRECT_INFERENCE_AVAILABLE:
+            raise ImportError("Direct inference is not available. Please check if the direct_inference module is properly installed.")
+        
+        self.inference_mode = "local"
+        self.verbose = verbose
+        
+        # Initialize the CogACT inferencer
+        self.inferencer = CogACTInferencer(
+            saved_model_path=saved_model_path,
+            unnorm_key=unnorm_key,
+            image_size=image_size,
+            cfg_scale=cfg_scale,
+            num_ddim_steps=num_ddim_steps,
+            use_ddim=use_ddim,
+            use_bf16=use_bf16,
+            action_ensemble=action_ensemble,
+            adaptive_ensemble_alpha=adaptive_ensemble_alpha,
+            action_ensemble_horizon=action_ensemble_horizon,
+            action_chunking=action_chunking,
+            action_chunking_window=action_chunking_window,
+            device=device,
+            verbose=verbose,
+            **kwargs
+        )
+        
+        if self.verbose:
+            print(f"*** CogACT Local Policy initialized successfully ***")
+    
+    def step(self, img_list, task_description: str, robot_state: dict, image_format: str="JPEG", verbose: bool=False):
+        """
+        Perform local inference using the CogACT model.
+        
+        Args:
+            img_list: List of images (head, left wrist, right wrist)
+            task_description: Task description in natural language
+            robot_state: Dictionary containing robot state information
+            image_format: Format of the images (default is "JPEG") - not used in local inference
+            verbose: If True, print additional information
+
+        Returns:
+            action: Action dictionary to be performed by the robot or None.
+        """
+        start_time = time.time()
+        
+        try:
+            # Use the predict method from CogACTInferencer which handles preprocessing
+            action = self.inferencer.predict(
+                images=img_list,
+                task_description=task_description,
+                state=robot_state,
+                save_logs=False  # Set to True if you want to save logs
+            )
+            
+            end_time = time.time()
+            
+            if verbose or self.verbose:
+                print(f"Local inference completed in {(end_time - start_time) * 1000:.2f} ms")
+                print(f"Processed images: {len(img_list)} images")
+                print(f"Task description: {task_description}")
+                print(f"Robot state: {robot_state}")
+                print(f"Predicted action: {action}")
+            
+            return action
+            
+        except Exception as e:
+            print(f"Local inference failed: {str(e)}")
+            return None
+    
+    def reset(self):
+        """Reset the action ensemble state"""
+        if hasattr(self.inferencer, 'reset'):
+            self.inferencer.reset()
+
 class CogActPolicy:
     """CogAct policy wrapper to choose between API and local inference modes"""
     def __init__(self, inference_mode="api", ip_address="localhost", port=8000):
         if inference_mode == "api":
             self.policy = CogActAPIPolicy(ip_address, port)
-        # elif inference_mode == "local":
-        #     self.policy = CogActLocalPolicy(
-        #         checkpoint_path="/path/to/your/model/checkpoint.pth",  # Update this path
-        #         model_config={
-        #             "model_type": "your_model_type",
-        #             "input_size": [3, 224, 224],
-        #             "output_dim": 7
-        #         }
-        #     )
+        elif inference_mode == "local":
+            self.policy = CogACTLocalPolicy(
+                saved_model_path="/path/to/your/model/directory",  # Update this path
+                unnorm_key="your_unnorm_key",
+                image_size=[224, 224],
+                cfg_scale=1.5,
+                num_ddim_steps=10,
+                use_ddim=True,
+                use_bf16=True,
+                action_ensemble=True,
+                adaptive_ensemble_alpha=0.1,
+                action_ensemble_horizon=2,
+                action_chunking=False,
+                action_chunking_window=None,
+                device="cuda",
+                verbose=False
+            )
         else:
-            raise ValueError("Unsupported inference mode. Use 'api'.")
+            raise ValueError("Unsupported inference mode. Use 'api' or 'local'.")
 
     def step(self, img_list, task_description: str, robot_state: dict=None, image_format: str="JPEG", verbose: bool=False):
         return self.policy.step(img_list, task_description, robot_state, image_format, verbose)
