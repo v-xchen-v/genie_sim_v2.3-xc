@@ -59,7 +59,7 @@ task_execution:
       pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
-    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] # best but not good for 19015
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
     iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
@@ -126,6 +126,8 @@ task_execution:
           frames_16: 1
         iros_stamp_the_seal:
           frames_32: -5
+        iros_clear_table_in_the_restaurant:
+          frames_16: 3
 
     
     # # Gripper signal filter parameters
@@ -276,7 +278,7 @@ ros:
 # =========================================================================
 policy:
   # Inference mode configuration
-  inference_mode: "local"  # Options: "api", "local"
+  inference_mode: "api"  # Options: "api", "local"
   
   # Mode descriptions:
   # - "api": Use remote API inference (original behavior)
@@ -288,7 +290,7 @@ policy:
   
   # API settings (used when inference_mode="api")
   # ip: "10.190.172.212"
-  # ip: "10.209.224.193" # 483
+  ip: "10.209.224.193" # 483
   # port: 19015 # no aug, step 15k
   # port: 19020 # no aug, step 20k
   # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
@@ -299,12 +301,13 @@ policy:
   # port: 25020 # camera base, step 20k, with depth
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
+  port: 28015 # fix casual pretrain, camera base, rgb only, step ~15k
   # port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
 
   # Local inference settings (used when inference_mode="local")
-  local_inference:
-    checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
-    unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
+  # local_inference:
+  #   checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+  #   unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
   #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
