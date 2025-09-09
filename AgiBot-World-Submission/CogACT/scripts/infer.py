@@ -479,7 +479,7 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
                 # else:
                 # print(f"instruction: {input["task_description"]}")
                 action = policy.step(model_input["image_list"], model_input["task_description"], model_input["robot_state"], verbose=False)
-                
+                logger.debug(f"Step {count} | Substep {curr_task_substep_index+1}/{total_substeps} | Action: {action}")
                 if action:                    
                     # Handle substep progression logic
                     task_advance_strategy = config.get_progression_strategy(task_name)
