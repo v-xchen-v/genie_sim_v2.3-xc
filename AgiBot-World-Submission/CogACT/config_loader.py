@@ -321,10 +321,15 @@ class InferenceConfig:
         """Get policy API port."""
         return self.config['policy']['port']
     
-    # @property
-    # def local_checkpoint_path(self) -> str:
-    #     """Get local model checkpoint path."""
-    #     return self.config['policy']['local_inference']['checkpoint_path']
+    @property
+    def local_checkpoint_path(self) -> str:
+        """Get local model checkpoint path."""
+        return self.config['policy']['local_inference']['checkpoint_path']
+    
+    @property
+    def unnorm_key(self) -> str:
+        """Get unnormalization key for local inference."""
+        return self.config['policy']['local_inference']['unnorm_key']
     
     # @property
     # def local_model_config(self) -> Dict[str, Any]:

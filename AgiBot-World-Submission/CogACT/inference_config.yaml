@@ -276,7 +276,7 @@ ros:
 # =========================================================================
 policy:
   # Inference mode configuration
-  inference_mode: "api"  # Options: "api", "local"
+  inference_mode: "local"  # Options: "api", "local"
   
   # Mode descriptions:
   # - "api": Use remote API inference (original behavior)
@@ -287,7 +287,7 @@ policy:
   #   Requires checkpoint_path and optional model_config
   
   # API settings (used when inference_mode="api")
-  ip: "10.190.172.212"
+  # ip: "10.190.172.212"
   # ip: "10.209.224.193" # 483
   # port: 19015 # no aug, step 15k
   # port: 19020 # no aug, step 20k
@@ -299,11 +299,12 @@ policy:
   # port: 25020 # camera base, step 20k, with depth
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
-  port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
+  # port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
 
-  # # Local inference settings (used when inference_mode="local")
-  # local_inference:
-  #   checkpoint_path: "/path/to/your/model/checkpoint.pth"  # Path to model checkpoint file
+  # Local inference settings (used when inference_mode="local")
+  local_inference:
+    checkpoint_path: "checkpoints/port_19015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+    unnorm_key: "agibot_challenge_sim_v2_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
   #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]

@@ -326,28 +326,78 @@ class CogACTLocalPolicy(BaseCogActPolicy):
 
 class CogActPolicy:
     """CogAct policy wrapper to choose between API and local inference modes"""
-    def __init__(self, inference_mode="api", ip_address="localhost", port=8000):
+    def __init__(self, inference_mode="api", **kwargs):
+        """
+        Initialize CogAct policy.
+        
+        Args:
+            inference_mode: "api" or "local"
+            **kwargs: Mode-specific arguments:
+                For API mode:
+                    - ip_address: IP address for API mode (default: "localhost")
+                    - port: Port for API mode (default: 8000)
+                For local mode:
+                    - saved_model_path: Path to the saved model directory (required for local mode)
+                    - unnorm_key: Key for action normalization
+                    - image_size: Input image size [height, width] (default: [224, 224])
+                    - cfg_scale: Classifier-free guidance scale (default: 1.5)
+                    - num_ddim_steps: Number of DDIM sampling steps (default: 10)
+                    - use_ddim: Whether to use DDIM sampling (default: True)
+                    - use_bf16: Whether to use bfloat16 precision (default: True)
+                    - action_ensemble: Whether to use action ensemble (default: True)
+                    - adaptive_ensemble_alpha: Alpha parameter for adaptive ensemble (default: 0.1)
+                    - action_ensemble_horizon: Horizon for action ensemble (default: 2)
+                    - action_chunking: Whether to use action chunking (default: False)
+                    - action_chunking_window: Window size for action chunking (default: None)
+                    - device: Device to run inference on (default: "cuda")
+                    - verbose: Whether to print verbose information (default: False)
+        """
         if inference_mode == "api":
+            # Extract API-specific parameters
+            ip_address = kwargs.get('ip_address', 'localhost')
+            port = kwargs.get('port', 8000)
             self.policy = CogActAPIPolicy(ip_address, port)
         elif inference_mode == "local":
+            if not DIRECT_INFERENCE_AVAILABLE:
+                raise ValueError("Direct inference is not available. Cannot use local inference mode.")
+            
+            # Extract required parameters for local inference
+            saved_model_path = kwargs.get('saved_model_path')
+            if saved_model_path is None:
+                raise ValueError("saved_model_path is required for local inference mode")
+            unnorm_key = kwargs.get('unnorm_key')
+            if unnorm_key is None:
+                raise ValueError("unnorm_key is required for local inference mode")
+            
             self.policy = CogACTLocalPolicy(
-                saved_model_path="/path/to/your/model/directory",  # Update this path
-                unnorm_key="your_unnorm_key",
-                image_size=[224, 224],
-                cfg_scale=1.5,
-                num_ddim_steps=10,
-                use_ddim=True,
-                use_bf16=True,
-                action_ensemble=True,
-                adaptive_ensemble_alpha=0.1,
-                action_ensemble_horizon=2,
-                action_chunking=False,
-                action_chunking_window=None,
-                device="cuda",
-                verbose=False
+                saved_model_path=saved_model_path,
+                unnorm_key=unnorm_key,
+                image_size=kwargs.get('image_size', [224, 224]),
+                cfg_scale=kwargs.get('cfg_scale', 1.5),
+                num_ddim_steps=kwargs.get('num_ddim_steps', 10),
+                use_ddim=kwargs.get('use_ddim', True),
+                use_bf16=kwargs.get('use_bf16', True),
+                action_ensemble=kwargs.get('action_ensemble', True),
+                adaptive_ensemble_alpha=kwargs.get('adaptive_ensemble_alpha', 0.1),
+                action_ensemble_horizon=kwargs.get('action_ensemble_horizon', 2),
+                action_chunking=kwargs.get('action_chunking', False),
+                action_chunking_window=kwargs.get('action_chunking_window', None),
+                device=kwargs.get('device', "cuda"),
+                verbose=kwargs.get('verbose', False),
+                **{k: v for k, v in kwargs.items() if k not in [
+                    'saved_model_path', 'unnorm_key', 'image_size', 'cfg_scale', 
+                    'num_ddim_steps', 'use_ddim', 'use_bf16', 'action_ensemble',
+                    'adaptive_ensemble_alpha', 'action_ensemble_horizon', 'action_chunking',
+                    'action_chunking_window', 'device', 'verbose'
+                ]}
             )
         else:
             raise ValueError("Unsupported inference mode. Use 'api' or 'local'.")
 
     def step(self, img_list, task_description: str, robot_state: dict=None, image_format: str="JPEG", verbose: bool=False):
         return self.policy.step(img_list, task_description, robot_state, image_format, verbose)
+    
+    def reset(self):
+        """Reset the policy state (useful for action ensemble in local mode)"""
+        if hasattr(self.policy, 'reset'):
+            self.policy.reset()
