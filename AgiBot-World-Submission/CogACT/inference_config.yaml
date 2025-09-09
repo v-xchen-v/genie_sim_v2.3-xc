@@ -340,7 +340,7 @@ policy:
   #   Use this for models trained with robot-relative poses
 
   # Image input strategy configuration (model-dependent)
-  image_strategy: "rgb_depth"  # Options: "rgb_only", "rgb_depth"
+  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
   
   # Strategy descriptions:
   # - "rgb_only": Use only RGB images as input (original behavior)
