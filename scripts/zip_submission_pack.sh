@@ -35,7 +35,14 @@ rsync -av "$SUBFOLDER/" "$CLEAN_FOLDER/" \
 
 echo "Creating zip archive: $OUTPUT_ZIP ..."
 rm -f "$OUTPUT_ZIP"
-zip -r "$OUTPUT_ZIP" "$CLEAN_FOLDER"
+# zip -r "$OUTPUT_ZIP" "$CLEAN_FOLDER"
+zip -r -0 "$OUTPUT_ZIP" "$CLEAN_FOLDER" # no compression to speed up zipping
+# remove the temporary clean copy
 # rm -rf "$CLEAN_FOLDER"
+
+# move the zip to the submission folder
+mv "$OUTPUT_ZIP" "submission/$OUTPUT_ZIP"
+# copy requirements.txt in SUBFOLDERPATH to the submission folder
+cp "${SUBFOLDER}/requirements.txt" "submission/"
 
 echo "Done! Archive saved as $OUTPUT_ZIP"
