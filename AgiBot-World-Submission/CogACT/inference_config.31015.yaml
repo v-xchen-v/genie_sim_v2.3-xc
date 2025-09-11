@@ -291,7 +291,7 @@ policy:
   # port: 25020 # camera base, step 20k, with depth
   # port: 25030 # camera base, step 30k, with depth
   # port: 25040 # camera base, step 40k, with depth
-  port: 28015 # fixed normalization issue, camera base, casual mask pretrain, step ~15k
+  port: 31015 # fixed normalization issue, camera base, casual mask pretrain, step ~15k
 
   # Alternative ports (for reference):
   # 17030: no aug, step 30k

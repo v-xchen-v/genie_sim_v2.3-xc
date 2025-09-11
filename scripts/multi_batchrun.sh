@@ -52,7 +52,7 @@ print_error() {
 backup_outputs() {
     local run_id="$1"
     local timestamp=$(date +%Y%m%d_%H%M%S)
-    local run_backup_dir="$BACKUP_DIR/run_${run_id}_${timestamp}"
+    local run_backup_dir="$BACKUP_DIR/run_${timestamp}_${run_id}"
     
     echo "Backing up outputs for run $run_id to $run_backup_dir"
     mkdir -p "$run_backup_dir"
@@ -178,9 +178,12 @@ main() {
     # Format: "run_id:config_file:task_name:model_name"
     # You can modify this array to add/remove/change configurations
     configs=(
-        "1:inference_config.28015.yaml:all:CogACT"
-        "2:inference_config.27015.yaml:all:CogACT"
-        "3:inference_config.26015.yaml:all:CogACT"
+        "1_port28015:inference_config.28015.yaml:all:CogACT"
+        "2_port31015:inference_config.31015.yaml:all:CogACT"
+        "3_port31115:inference_config.31115.yaml:all:CogACT"
+        "4_port28115:inference_config.28115.yaml:all:CogACT"
+        "5_port28215:inference_config.28215.yaml:all:CogACT"
+        "6_port28315:inference_config.28315.yaml:all:CogACT"
         # "3:inference_config.24xxx.yaml:all:CogACT"
         # "4:inference_config.19xxx.yaml:all:CogACT"
     )
