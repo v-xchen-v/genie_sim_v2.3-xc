@@ -52,7 +52,7 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps:
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7]
     iros_pack_moving_objects_from_conveyor:
       # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
@@ -73,7 +73,7 @@ task_execution:
     # Default gripper ratios for scaling
     default_ratios:
       larger_one_side: 1.714  # 1.2/0.7
-      larger_two_side: 1.714  # 1.2/0.7
+      larger_two_side: 2.428  # 1.2/0.7
     
     # Task-specific gripper strategies
     strategy_per_task:
@@ -82,6 +82,8 @@ task_execution:
       iros_restock_supermarket_items: "larger_two_side"
       iros_clear_table_in_the_restaurant: "larger_two_side"
       iros_clear_the_countertop_waste: "larger_two_side"
+      # iros_pack_in_the_supermarket: "larger_two_side"
+      iros_pack_in_the_supermarket: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
@@ -98,8 +100,26 @@ task_execution:
         larger_two_side: 1.714
       iros_open_drawer_and_store_items:
         larger_one_side: 2.0
-      # iros_pack_in_the_supermarket:
-      #   larger_two_side: 1.7
+      iros_pack_in_the_supermarket: # not closed enough as default, need to be larger
+        larger_two_side: 4.0
+        # larger_two_side: 3.0
+
+    post_strategy_per_task:
+      post_strategy: "none"  # Options: "none", "threshold_as_max"
+      post_threshold_degrees: 50.0 # degrees
+
+      # Per-task overrides
+      post_strategy_per_task:
+          # iros_pickup_items_from_the_freezer: "threshold_as_max"
+          # iros_make_a_sandwich: "none"
+          # iros_clear_table_in_the_restaurant: "threshold_as_max"
+          # iros_restock_supermarket_items: "threshold_as_max"
+          iros_pack_in_the_supermarket: "threshold_as_max"
+      
+      threshold_degrees_per_task:
+          # iros_pickup_items_from_the_freezer: 45.0
+          # iros_make_a_sandwich: 60.0
+          # iros_clear_table_in_the_restaurant: 40.0
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -114,7 +134,7 @@ task_execution:
       task_specific:
         iros_pack_in_the_supermarket: 
           frames_32: 0
-          frames_16: 5
+          frames_16: 0
           frames_8: 0
           # frames_4: 1
         iros_restock_supermarket_items:
