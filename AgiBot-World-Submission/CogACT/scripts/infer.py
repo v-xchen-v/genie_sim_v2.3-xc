@@ -742,7 +742,7 @@ if __name__ == "__main__":
                         help='Name of the task to run')
     # parser.add_argument('--enable_video_recording', action='store_true', default=True,
     #                     help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
-    parser.add_argument('--enable_file_logging', action='store_true', default=True,
+    parser.add_argument('--enable_file_logging', action='store_true', default=False,
                         help='Enable logging to file in addition to console output. (default: True), otherwise, console output only.')
     args = parser.parse_args()
 
