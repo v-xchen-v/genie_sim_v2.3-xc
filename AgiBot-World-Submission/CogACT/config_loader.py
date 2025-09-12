@@ -143,9 +143,10 @@ class InferenceConfig:
         Returns:
             List of execution step indices
         """
-        task_steps = self.config['task_execution']['task_execution_steps']
+        task_steps = self.config['task_execution'].get('task_execution_steps', {})
         
-        if task_name not in task_steps:
+        # If task_execution_steps is None or empty, or task not found, use default
+        if not task_steps or task_name not in task_steps:
             return self.config['task_execution']['default_execution_steps']
         
         steps_config = task_steps[task_name]
@@ -154,9 +155,9 @@ class InferenceConfig:
         if task_name == "iros_pack_moving_objects_from_conveyor" and isinstance(steps_config, dict):
             if substep_index is not None and total_substeps is not None:
                 if substep_index % total_substeps == 0:  # Pickup substep
-                    return steps_config["pickup_substep"]
+                    return steps_config.get("pickup_substep", self.config['task_execution']['default_execution_steps'])
                 else:  # Place substep
-                    return steps_config["place_substep"]
+                    return steps_config.get("place_substep", self.config['task_execution']['default_execution_steps'])
             return self.config['task_execution']['default_execution_steps']
         
         return steps_config
@@ -234,12 +235,19 @@ class InferenceConfig:
             strategy = self.get_gripper_strategy(task_name)
         
         # Check for task-specific ratio first
-        task_ratios = gripper_config['ratios_per_task'].get(task_name, {})
-        if strategy in task_ratios:
-            return task_ratios[strategy]
+        ratios_per_task = gripper_config.get('ratios_per_task', {})
+        if ratios_per_task and task_name in ratios_per_task:
+            task_ratios = ratios_per_task[task_name]
+            if isinstance(task_ratios, dict) and strategy in task_ratios:
+                return task_ratios[strategy]
         
         # Fall back to default ratio
-        return gripper_config['default_ratios'][strategy]
+        default_ratios = gripper_config.get('default_ratios', {})
+        if strategy in default_ratios:
+            return default_ratios[strategy]
+        
+        # If strategy not found in defaults either, return a sensible default
+        return 1.0
     
     def get_gripper_timing_adjustment(self, task_name: str, sequence_length: int) -> int:
         """Get gripper timing adjustment (frames to shift forward) for a task."""
