@@ -1,0 +1,444 @@
+# Inference Configuration for Robot Task Execution
+# This YAML file contains all configurable parameters for the robot inference system.
+
+# =========================================================================
+# IMAGE PROCESSING CONFIGURATION
+# =========================================================================
+image_processing:
+  # Input processing settings
+  resize_mode: "1x1"  # Options: "1x1", "4x3_pad_resize"
+  # Note: Use "1x1" for augmented models, "4x3_pad_resize" for others
+  
+  # Depth image handling configuration
+  depth_images:
+    save_debug_images: false  # Save depth images to disk for debugging
+    colormap: "turbo"  # Colormap for depth visualization: "turbo", "viridis", "plasma", etc.
+    depth_range:
+      min_val: 0.256  # Minimum depth value in meters for normalization
+      max_val: 1.024  # Maximum depth value in meters for normalization
+    
+    # Which depth cameras to use (when policy.image_strategy="rgb_depth")
+    cameras:
+      head: true      # Use head depth camera
+      left_wrist: true   # Use left wrist depth camera  
+      right_wrist: true  # Use right wrist depth camera
+    
+    # Notes:
+    # - Depth image fetching is controlled by policy.image_strategy setting
+    # - When image_strategy="rgb_only": depth images are not fetched (saves bandwidth)
+    # - When image_strategy="rgb_depth": depth images are fetched and processed 
+    # - save_debug_images=true: saves colorized depth images to disk for debugging
+    # - Depth images are processed to float32 format in meters
+  
+#   log_observations: false  # Whether to log observations during processing
+  
+#   # Image saving settings
+#   target_image_height: 224  # Height for resized images
+#   save_individual_camera_images: false  # Save head, left_wrist, right_wrist separately
+#   save_combined_image: true  # Save combined image
+#   image_save_format: "jpg"  # Image format: jpg, png
+
+  # Detailed image saving per joint execution step
+  save_per_joint_step_images: true  # Save images for each joint command execution step
+  # joint_step_image_prefix: "joint_step"  # Prefix for joint step images
+  # inference_step_image_prefix: "inference"  # Prefix for inference step imagesuration for Robot Task Execution
+
+# =========================================================================
+# TASK EXECUTION CONFIGURATION
+# =========================================================================
+task_execution:
+  # Default execution steps (16-step trajectory)
+  default_execution_steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  
+  # Task-specific execution steps
+  task_execution_steps:
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_moving_objects_from_conveyor:
+      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
+      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    # iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] 
+    iros_open_drawer_and_store_items: [0, 2, 4, 6, 8, 10, 12, 14] # move too slow, let's jump
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
+
+  # Gripper configuration
+  gripper_config:
+    # Default gripper ratios for scaling
+    default_ratios:
+      larger_one_side: 1.714  # 1.2/0.7
+      larger_two_side: 2.428  # 1.2/0.7*scale to let largetr side same with larger_one_side
+    
+    # Task-specific gripper strategies
+    strategy_per_task:
+      iros_pack_moving_objects_from_conveyor: "larger_two_side"
+      iros_pickup_items_from_the_freezer: "larger_two_side"
+      iros_restock_supermarket_items: "larger_two_side"
+      iros_clear_table_in_the_restaurant: "larger_two_side"
+      iros_clear_the_countertop_waste: "larger_two_side"
+      # iros_pack_in_the_supermarket: "larger_two_side"
+      iros_pack_in_the_supermarket: "larger_two_side"
+      default: "larger_one_side"
+    
+    # Task-specific gripper ratios (overrides default)
+    ratios_per_task:
+      iros_pack_moving_objects_from_conveyor:
+        larger_two_side: 2
+      iros_pickup_items_from_the_freezer:
+        larger_two_side: 2 # maybe smaller is better, need to test
+      iros_restock_supermarket_items:
+        larger_two_side: 1.714
+      # iros_make_a_sandwich:
+      #   larger_one_side: 1.6
+      iros_make_a_sandwich:
+        larger_two_side: 1.714
+      iros_open_drawer_and_store_items:
+        larger_one_side: 2.0
+      iros_pack_in_the_supermarket: # not closed enough as default, need to be larger
+        larger_two_side: 4.0
+        # larger_two_side: 3.0
+
+    post_strategy_per_task:
+      post_strategy: "none"  # Options: "none", "threshold_as_max"
+      post_threshold_degrees: 50.0 # degrees
+
+      # Per-task overrides
+      post_strategy_per_task:
+          # iros_pickup_items_from_the_freezer: "threshold_as_max"
+          # iros_make_a_sandwich: "none"
+          # iros_clear_table_in_the_restaurant: "threshold_as_max"
+          # iros_restock_supermarket_items: "threshold_as_max"
+          iros_pack_in_the_supermarket: "threshold_as_max"
+      
+      threshold_degrees_per_task:
+          # iros_pickup_items_from_the_freezer: 45.0
+          # iros_make_a_sandwich: 60.0
+          # iros_clear_table_in_the_restaurant: 40.0
+    
+    # Gripper timing adjustment (frames to shift forward)
+    timing_adjustment:
+      # Default timing adjustments based on action sequence length
+      frames_32: 0  # For 32-step sequences
+      frames_16: 0  # For 16-step sequences
+      frames_8: 0   # For 8-step sequences  
+      frames_4: 0   # For 4-step sequences
+      default: 0    # For other sequences
+      
+      # Task-specific timing adjustments
+      task_specific:
+        iros_pack_in_the_supermarket: 
+          frames_32: 0
+          frames_16: 3
+          frames_8: 0
+          # frames_4: 1
+        iros_restock_supermarket_items:
+          frames_16: 3
+          frames_8: 0
+          frames_4: 0
+        iros_pickup_items_from_the_freezer:
+          frames_16: 1
+        iros_make_a_sandwich:
+          frames_16: 1
+        iros_stamp_the_seal:
+          frames_32: -5
+        iros_clear_table_in_the_restaurant:
+          frames_16: 3
+        iros_clear_the_countertop_waste:
+          frames_16: 3
+        
+
+    
+    # # Gripper signal filter parameters
+    # signal_filter:
+    #   ema_alpha: 0.25
+    #   max_step: 0.08
+    #   dropout_abs: 0.05
+    #   dropout_rel_drop: 0.5
+    #   lookahead: 1
+    #   monotone: null  # or 'closing'/'opening' for specific phases
+  
+  # Number of interpolation steps for different tasks
+  interpolation_steps:
+    iros_clear_the_countertop_waste: 2
+    iros_pack_moving_objects_from_conveyor: 
+      pickup_substep: 1  # For pickup substep
+      place_substep: 2  # For place substep
+    iros_make_a_sandwich: 1
+    iros_restock_supermarket_items:
+      pickup_substep: 1
+      place_substep: 2
+    iros_pack_in_the_supermarket: 2 # slower to be triggered evaluation
+    iros_clear_table_in_the_restaurant:
+      pickup_substep: 2
+      place_substep: 1
+    iros_open_drawer_and_store_items: 1
+    iros_pickup_items_from_the_freezer: 1
+    iros_stamp_the_seal: 2 # slower to make sure stamp will not be kicked away
+    iros_heat_the_food_in_the_microwave: 1
+    default: 2
+
+  # Inverse Kinematics configuration
+  ik_config:
+    # Number of IK iterations for solving end-effector poses
+    iterations:
+      default: 1  # Default number of IK iterations
+      # Task-specific IK iteration overrides (if needed)
+      # iros_pack_moving_objects_from_conveyor: 3
+      iros_restock_supermarket_items: 1
+      iros_clear_table_in_the_restaurant: 1
+    
+    # IK error logging configuration
+    enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
+
+# =========================================================================
+# TASK PROGRESSION CONFIGURATION
+# =========================================================================
+task_progression:
+  # Progress thresholds for substep advancement
+  progress_thresholds:
+    iros_pack_in_the_supermarket: 0.98
+    iros_restock_supermarket_items: 0.97
+    iros_stamp_the_seal: 0.99
+    iros_clear_the_countertop_waste: 0.96
+    iros_clear_table_in_the_restaurant: 0.97
+    iros_heat_the_food_in_the_microwave: 0.96
+    iros_open_drawer_and_store_items: 0.97
+    iros_pickup_items_from_the_freezer: 0.95
+    iros_make_a_sandwich: 0.96
+  
+  # Minimum inference counters before advancing
+  min_inference_counters:
+    iros_pack_in_the_supermarket: 12
+    iros_restock_supermarket_items: 5
+    iros_stamp_the_seal: 10
+    iros_clear_the_countertop_waste: 6
+    iros_clear_table_in_the_restaurant: 10
+    iros_heat_the_food_in_the_microwave: 40
+    iros_open_drawer_and_store_items: 120 # give it enough time to open the drawer
+    # iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
+    iros_pack_moving_objects_from_conveyor: 30  # For [0, 4, 8, 12] steps, rgb_depth
+    iros_pickup_items_from_the_freezer: 24
+    iros_make_a_sandwich: 12
+  
+  # Maximum inference counters (for timeout)
+  max_inference_counters:
+    iros_pack_in_the_supermarket: 120 # 1-4 steps
+    iros_clear_table_in_the_restaurant: 40  # 1-9 steps
+    iros_heat_the_food_in_the_microwave: 120
+    iros_pickup_items_from_the_freezer: 80  # 1-12 steps
+    iros_open_drawer_and_store_items: 80  # 1-8 steps
+    iros_clear_the_countertop_waste: 80  # 1-9 steps
+    iros_restock_supermarket_items: 20
+    iros_stamp_the_seal: 80
+    iros_make_a_sandwich: 40
+  
+  # Default progression strategy for each task
+  task_progression_strategies:
+    iros_pack_moving_objects_from_conveyor: "restrict_inference_count"
+    iros_open_drawer_and_store_items: "restrict_inference_count"
+    default: "by_progress"
+
+# =========================================================================
+# HEAD JOINT CONFIGURATIONS
+# =========================================================================
+head_joint_configurations:
+  iros_clear_the_countertop_waste:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4593
+  iros_restock_supermarket_items:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.3839745594177246
+  iros_clear_table_in_the_restaurant:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_stamp_the_seal:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.384
+  iros_pack_in_the_supermarket:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_heat_the_food_in_the_microwave:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43633231
+  iros_open_drawer_and_store_items:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.2617993878
+  iros_pack_moving_objects_from_conveyor:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4362
+  iros_pickup_items_from_the_freezer:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.4362
+  iros_make_a_sandwich:
+    idx11_head_joint1: 0.0
+    idx12_head_joint2: 0.43634
+
+# =========================================================================
+# ROS CONFIGURATION
+# =========================================================================
+ros:
+  # ROS node loop rate configuration (Hz)
+  loop_rate: 4.0  # Default: 4.0 Hz
+  
+  # Task-specific loop rates (overrides default)
+  task_loop_rates:
+    # Example task-specific configurations:
+    iros_pack_moving_objects_from_conveyor: 10.0  # Higher rate for fast tasks
+    iros_open_drawer_and_store_items: 2.0 # Slower for avoiding pushing drawer too fast
+    # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
+    iros_restock_supermarket_items: 2.0 # Slower for precise tasks
+  # # ROS node configuration
+  # node_name: "univla_node"  # Default ROS node name
+  # use_sim_time: true  # Use simulation time
+
+# =========================================================================
+# POLICY CONFIGURATION
+# =========================================================================
+policy:
+  # Inference mode configuration
+  inference_mode: "api"  # Options: "api", "local"
+  
+  # Mode descriptions:
+  # - "api": Use remote API inference (original behavior)
+  #   Sends requests to a remote inference server
+  #   Requires ip and port configuration
+  # - "local": Use local model inference (new behavior)
+  #   Loads and runs model locally from checkpoint
+  #   Requires checkpoint_path and optional model_config
+  
+  # API settings (used when inference_mode="api")
+  ip: "10.190.172.212"
+  # ip: "10.209.224.193" # 483
+  # port: 19015 # no aug, step 15k
+  # port: 19020 # no aug, step 20k
+  # port: 21020  # no aug, step~20k, new sim dat, fix pretrain with casual mask, batchsize=512, predict 32 steps, 5 timestep
+  # port: 22020    # no aug, step~20k, new sim data,fix pretrain with casual mask, batchsize=512, predict 32 steps, 3 timestep
+  # port: 24025 # robot base, step 20k
+  # port: 24015 # robot base, step 15k
+  # port: 25015 # camera base, step 15k, with depth
+  # port: 25020 # camera base, step 20k, with depth
+  # port: 25030 # camera base, step 30k, with depth
+  # port: 25040 # camera base, step 40k, with depth
+  port: 36015 # use 'step0_relative' instead of 'cumulative' before
+  # port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
+
+  # Local inference settings (used when inference_mode="local")
+  # local_inference:
+  #   checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+  #   unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
+  #   model_config:
+  #     model_type: "cogact_model"  # Type of model architecture
+  #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
+  #     output_dim: 7  # Output action dimension
+  #     # Add other model-specific configuration here
+    
+  #   # Performance settings
+  #   device: "cuda"  # Device for inference: "cuda", "cpu", "auto"
+  #   batch_size: 1  # Batch size for inference (typically 1 for real-time)
+    
+  #   # Optional: Model optimization settings
+  #   # use_jit: false  # Use TorchScript JIT compilation
+  #   # use_half_precision: false  # Use half precision (FP16) for faster inference
+
+  # Alternative ports (for reference):
+  # 17030: no aug, step 30k
+  # 17040: no aug, step 40k
+  # 18020: aug, step~20k
+  # 19020: no aug, step~20k, use new sim data
+  # 19030: no aug, step~30k, new sim data
+  # 19040  # Current: no aug, step~30k, new sim dat
+  # 20020: no aug, step~20k, new sim data, batchsize=1k
+
+  # Coordinate mode configuration (model-dependent)
+  coordinate_mode: "camera"  # Options: "camera", "robot_base"
+  
+  # Mode descriptions:
+  # - "camera": Transform through camera coordinates (original behavior)
+  #   VLA poses → camera coordinates → arm base → joint angles
+  #   Use this for models trained with camera-relative poses
+  # - "robot_base": Work directly in robot base coordinates (new behavior)  
+  #   VLA poses → robot base coordinates → arm base → joint angles
+  #   Use this for models trained with robot-relative poses
+
+  # Image input strategy configuration (model-dependent)
+  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
+  
+  # Strategy descriptions:
+  # - "rgb_only": Use only RGB images as input (original behavior)
+  #   Input: [img_h, img_l, img_r] (3 RGB images)
+  #   Use this for models trained with RGB images only
+  # - "rgb_depth": Use RGB + depth images as input (new behavior)
+  #   Input: [img_h, img_l, img_r, depth_h, depth_l, depth_r] (3 RGB + 3 depth images)
+  #   Use this for models trained with both RGB and depth images
+  #   Note: Depth image processing is automatically enabled when using "rgb_depth"
+
+  # Pose accumulation strategy configuration (model-dependent)
+  pose_strategy: "step0_relative"  # Options: "cumulative", "step0_relative"
+  
+  # Strategy descriptions:
+  # - "cumulative": Original strategy - each step applies delta to previous step's pose
+  #   Step 1: current_pose + delta1 -> pose1
+  #   Step 2: pose1 + delta2 -> pose2  
+  #   Step 3: pose2 + delta3 -> pose3
+  # - "step0_relative": New strategy - all steps apply delta relative to step 0 (current pose)
+  #   Step 1: current_pose + delta1 -> pose1
+  #   Step 2: current_pose + delta2 -> pose2
+  #   Step 3: current_pose + delta3 -> pose3
+
+# # =========================================================================
+# # SIMULATION CONFIGURATION
+# # =========================================================================
+# simulation:
+#   init_time: 8  # Seconds to wait for simulation initialization
+  
+#   # Return to initial pose settings
+#   return_to_initial_steps: 10  # Interpolation steps for returning to initial pose
+
+# =========================================================================
+# LOGGING AND RECORDING CONFIGURATION
+# =========================================================================
+logging:
+    enable_video_recording: true  # Enable video recording during inference
+
+#   # Directory settings
+#   default_log_dir: "./inference_logs"
+#   default_video_recording_dir: "./video_recordings"
+  
+#   # Log format
+#   log_format: '%(asctime)s | %(levelname)s | %(message)s'
+#   log_date_format: '%Y-%m-%d %H:%M:%S'
+  
+#   # Progress logging frequency
+#   image_save_log_frequency: 10  # Log progress every N images
+
+# =========================================================================
+# EXAMPLE: ENABLE DEPTH IMAGES FOR MODELS THAT REQUIRE THEM
+# =========================================================================
+# To enable depth image processing for a model that requires depth input:
+# 
+# 1. Set policy.image_strategy to "rgb_depth"
+# 2. Optionally enable save_debug_images for debugging
+# 3. Configure which cameras to use
+# 4. VLAInputProcessor will automatically handle depth image processing
+#
+# Example configuration:
+# policy:
+#   image_strategy: "rgb_depth"  # Use RGB + depth images
+# 
+# image_processing:
+#   depth_images:
+#     save_debug_images: true  # For debugging
+#     colormap: "turbo"
+#     depth_range:
+#       min_val: 0.1
+#       max_val: 3.0
+#     cameras:
+#       head: true
+#       left_wrist: true
+#       right_wrist: true

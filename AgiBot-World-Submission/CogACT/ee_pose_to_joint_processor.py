@@ -284,14 +284,14 @@ class EEtoJointProcessor:
             center = gripper_upper/2.0  # Center point (0.39269908169872414)
             # Transform gripper values: (value - center) * ratio, then map back to larger range
             gripper_transformed = (gripper_act_value - center) * ratio
-            # Map back to larger range around [0, 1]
-            if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich"\
-                or task_name == "iros_clear_table_in_the_restaurant"\
-                or task_name == "iros_restock_supermarket_items": 
-                gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
-            else:
-                # maybe wa here, need to fix later more
-                gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
+            # # Map back to larger range around [0, 1]
+            # if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich"\
+            #     or task_name == "iros_clear_table_in_the_restaurant"\
+            #     or task_name == "iros_restock_supermarket_items": 
+            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+            # else:
+            #     # maybe wa here, need to fix later more
+            #     gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
@@ -334,6 +334,35 @@ class EEtoJointProcessor:
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
         # print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
         # print(f"filtered gripper command shape: {filtered_gripper_cmd.shape}, filtered gripper command: {filtered_gripper_cmd}")
+        
+        # Post-processing strategy to treat values above a threshold as the biggest to avoid dropping objects.
+        # Strategy can be configured in the YAML under task_execution -> gripper_config
+        # Supported strategies:
+        #   - "threshold_as_max" (default): treat any gripper command above threshold_degrees as fully closed (1.0)
+        #   - "none": do nothing
+        gripper_cfg = self.config.config.get("task_execution", {}).get("gripper_config", {})
+        post_strategy = gripper_cfg.get("post_strategy_per_task", {}).get(task_name,
+                  gripper_cfg.get("post_strategy", "threshold_as_max"))
+
+        # Threshold degrees can be set globally or per-task (defaults to 50 degrees)
+        threshold_deg = gripper_cfg.get("threshold_degrees_per_task", {}).get(task_name,
+                gripper_cfg.get("post_threshold_degrees", 50.0))
+        threshold = float(np.deg2rad(threshold_deg))
+
+        if self.logger:
+            self.logger.info(f"Gripper post-processing strategy: {post_strategy}, threshold (deg): {threshold_deg}")
+
+        if post_strategy == "threshold_as_max":
+            # treat values greater than threshold as fully closed (1.0) to avoid dropping
+            filtered_gripper_cmd[filtered_gripper_cmd > threshold] = 1.0
+        elif post_strategy == "none":
+            # no-op
+            pass
+        else:
+            # Unknown strategy -> fallback to safe default
+            if self.logger:
+                self.logger.warning(f"Unknown gripper post-processing strategy '{post_strategy}'. Falling back to 'threshold_as_max'.")
+                filtered_gripper_cmd[filtered_gripper_cmd > threshold] = 1.0
         
         return filtered_gripper_cmd
     
