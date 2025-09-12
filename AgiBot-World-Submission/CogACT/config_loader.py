@@ -287,9 +287,9 @@ class InferenceConfig:
         Returns:
             str: Either "cumulative" or "step0_relative"
         """
-        # Get the pose strategy directly from the config (simplified structure)
+        # Get the pose strategy from policy section (model-dependent configuration)
         # task_name is accepted for future extensibility but currently ignored
-        return self.config.get('task_execution', {}).get('pose_strategy', 'cumulative')
+        return self.config.get('policy', {}).get('pose_strategy', 'cumulative')
     
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION
