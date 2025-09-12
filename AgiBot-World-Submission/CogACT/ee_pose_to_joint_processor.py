@@ -31,19 +31,26 @@ class EEtoJointProcessor:
         Step 3: current_pose + delta3 -> pose3
     
     Usage:
-        # Initialize with default cumulative strategy
+        # Initialize with default configuration (reads pose strategy from config)
         processor = EEtoJointProcessor(logger=logger, coord_mode="camera")
         
-        # Or initialize with step0_relative strategy
+        # Or override pose strategy for initialization
         processor = EEtoJointProcessor(logger=logger, coord_mode="camera", pose_strategy="step0_relative")
         
         # Change strategy at runtime
         processor.set_pose_strategy("step0_relative")
+        
+        # Configure task-specific strategies in inference_config.yaml:
+        # task_execution:
+        #   pose_strategy:
+        #     default: "cumulative"
+        #     task_specific:
+        #       iros_pack_in_the_supermarket: "step0_relative"
     
     Uses urdfpy FK + relax IK.
     """
     ### ------------Public API------------ ###
-    def __init__(self, logger: Optional[Any] = None, coord_mode: str = "camera", pose_strategy: str = "cumulative"):
+    def __init__(self, logger: Optional[Any] = None, coord_mode: str = "camera", pose_strategy: str = None):
         # Load configuration
         self.config = get_config()
         
@@ -51,9 +58,15 @@ class EEtoJointProcessor:
         if self.coord_mode not in ["camera", "robot_base"]:
             raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
         
-        self.pose_strategy = pose_strategy
-        if self.pose_strategy not in ["cumulative", "step0_relative"]:
-            raise ValueError(f"Invalid pose_strategy: {self.pose_strategy}. Must be 'cumulative' or 'step0_relative'.")
+        # Initialize pose strategy from config or parameter
+        if pose_strategy is None:
+            # Get default strategy from config
+            self.pose_strategy = self.config.get_pose_strategy()
+        else:
+            # Use provided strategy and validate it
+            if pose_strategy not in ["cumulative", "step0_relative"]:
+                raise ValueError(f"Invalid pose_strategy: {pose_strategy}. Must be 'cumulative' or 'step0_relative'.")
+            self.pose_strategy = pose_strategy
         
         self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
         if not self.fk_urdf_path.exists():
@@ -397,10 +410,13 @@ class EEtoJointProcessor:
         rotation_list = []
         translation_list = []
         
-        if self.logger:
-            self.logger.debug(f"Using pose strategy: {self.pose_strategy} for {arm} arm")
+        # Get pose strategy from configuration (simplified - no task-specific logic)
+        current_pose_strategy = self.config.get_pose_strategy()
         
-        if self.pose_strategy == "cumulative":
+        if self.logger:
+            self.logger.debug(f"Using pose strategy: {current_pose_strategy} for {arm} arm")
+        
+        if current_pose_strategy == "cumulative":
             # Original strategy: cumulative deltas from previous step
             rotation_sum = curr_ee_rot
             for rot_delta in rotation_delta:
@@ -412,7 +428,7 @@ class EEtoJointProcessor:
                 translation_sum += trans_delta
                 translation_list.append(translation_sum.copy())
                 
-        elif self.pose_strategy == "step0_relative":
+        elif current_pose_strategy == "step0_relative":
             # New strategy: all steps relative to step 0 (current pose)
             base_rotation = curr_ee_rot
             base_translation = curr_ee_trans

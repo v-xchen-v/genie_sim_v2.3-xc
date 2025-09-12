@@ -229,11 +229,13 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Get coordinate mode from policy configuration
     coord_mode = config.get_coordinate_mode()
     image_strategy = config.get_image_strategy()
+    pose_strategy = config.get_pose_strategy(task_name)
     logger.info(f"🔧 Using coordinate mode: {coord_mode}")
     logger.info(f"🖼️ Using image strategy: {image_strategy}")
+    logger.info(f"📐 Using pose strategy: {pose_strategy}")
 
-    # Initialize ee_to_joint_processor at module level with coordinate mode
-    ee_to_joint_processor = EEtoJointProcessor(logger=logger, coord_mode=coord_mode)
+    # Initialize ee_to_joint_processor at module level with coordinate mode and pose strategy
+    ee_to_joint_processor = EEtoJointProcessor(logger=logger, coord_mode=coord_mode, pose_strategy=pose_strategy)
     input_processor = VLAInputProcessor(logger=logger, log_obs=False, resize_mode=config.resize_mode, coord_mode=coord_mode, image_strategy=image_strategy)  # "4x3_pad_resize" or "1x1", if is a aug model use "1x1", else use "4x3_pad_resize"
     
     rclpy.init()

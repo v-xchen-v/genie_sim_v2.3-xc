@@ -176,6 +176,19 @@ task_execution:
     # IK error logging configuration
     enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
 
+  # Pose accumulation strategy configuration
+  pose_strategy: "cumulative"  # Options: "cumulative", "step0_relative"
+  
+  # Strategy descriptions:
+  # - "cumulative": Original strategy - each step applies delta to previous step's pose
+  #   Step 1: current_pose + delta1 -> pose1
+  #   Step 2: pose1 + delta2 -> pose2  
+  #   Step 3: pose2 + delta3 -> pose3
+  # - "step0_relative": New strategy - all steps apply delta relative to step 0 (current pose)
+  #   Step 1: current_pose + delta1 -> pose1
+  #   Step 2: current_pose + delta2 -> pose2
+  #   Step 3: current_pose + delta3 -> pose3
+
 # =========================================================================
 # TASK PROGRESSION CONFIGURATION
 # =========================================================================
