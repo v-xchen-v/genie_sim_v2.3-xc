@@ -282,7 +282,7 @@ ros:
 # =========================================================================
 policy:
   # Inference mode configuration
-  inference_mode: "api"  # Options: "api", "local"
+  inference_mode: "local"  # Options: "api", "local"
   
   # Mode descriptions:
   # - "api": Use remote API inference (original behavior)
@@ -309,9 +309,9 @@ policy:
   # port: 29015 # fixed normalization issue, camera base, with depth, step ~30k
 
   # Local inference settings (used when inference_mode="local")
-  # local_inference:
-  #   checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
-  #   unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
+  local_inference:
+    checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+    unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
   #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
@@ -384,7 +384,7 @@ policy:
 # LOGGING AND RECORDING CONFIGURATION
 # =========================================================================
 logging:
-    enable_video_recording: true  # Enable video recording during inference
+    enable_video_recording: false  # Enable video recording during inference
 
 #   # Directory settings
 #   default_log_dir: "./inference_logs"
