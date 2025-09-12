@@ -282,16 +282,15 @@ class EEtoJointProcessor:
             # gripper_upper = 0.7853981633974483  # 45 degrees in radians
             gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
             center = gripper_upper/2.0  # Center point (0.39269908169872414)
-            # Transform gripper values: (value - center) * ratio, then map back to larger range
-            gripper_transformed = (gripper_act_value - center) * ratio
-            # # Map back to larger range around [0, 1]
-            # if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich"\
-            #     or task_name == "iros_clear_table_in_the_restaurant"\
-            #     or task_name == "iros_restock_supermarket_items": 
-            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
-            # else:
-            #     # maybe wa here, need to fix later more
-            #     gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
+
+           # Calculate offset from center (-0.5 to 0.5)
+            offset_from_center = gripper_act_value - center
+            # Multiply offset by ratio
+            scaled_offset = offset_from_center * ratio
+            
+            # Add back to center and clip to valid range
+            gripper_cmd_joint = center + scaled_offset
+            gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
