@@ -229,6 +229,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Get coordinate mode from policy configuration
     coord_mode = config.get_coordinate_mode()
     image_strategy = config.get_image_strategy()
+    if task_name == "iros_pack_moving_objects_from_conveyor":
+        image_strategy = "rgb_only" # for fast moving task, rgb only is better
     pose_strategy = config.get_pose_strategy(task_name)
     logger.info(f"🔧 Using coordinate mode: {coord_mode}")
     logger.info(f"🖼️ Using image strategy: {image_strategy}")

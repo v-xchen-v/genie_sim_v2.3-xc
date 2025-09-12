@@ -53,7 +53,7 @@ task_execution:
   # Task-specific execution steps
   task_execution_steps:
     iros_pack_in_the_supermarket: [0, 1, 2, 3]
-    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
       # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
       # pickup_substep: [0, 4, 8, 12]  # Still slow
@@ -61,10 +61,10 @@ task_execution:
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
-    iros_pickup_items_from_the_freezer: [0, 2, 4, 6, 8, 10, 12] # make it faster to push the freezer door with big force
+    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
-    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     # iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] 
     iros_open_drawer_and_store_items: [0, 2, 4, 6, 8, 10, 12, 14] # move too slow, let's jump
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
@@ -80,37 +80,34 @@ task_execution:
     strategy_per_task:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
-      iros_restock_supermarket_items: "larger_one_side"
+      iros_restock_supermarket_items: "larger_two_side"
       iros_clear_table_in_the_restaurant: "larger_two_side"
-      iros_clear_the_countertop_waste: "larger_one_side"
+      iros_clear_the_countertop_waste: "larger_two_side"
       # iros_pack_in_the_supermarket: "larger_two_side"
       iros_pack_in_the_supermarket: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
     ratios_per_task:
-      iros_pack_moving_objects_from_conveyor:
-        larger_two_side: 2
+      # iros_pack_moving_objects_from_conveyor:
+      #   larger_two_side: 2
       iros_pickup_items_from_the_freezer:
-        larger_two_side: 2.5 # maybe smaller is better, need to test
+        larger_two_side: 2 # maybe smaller is better, need to test
       iros_restock_supermarket_items:
-        larger_one_side: 2.5
-      #   larger_two_side: 1.714
+        larger_two_side: 1.714
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
-      # iros_make_a_sandwich:
-      #   larger_two_side: 1.714
-      # iros_open_drawer_and_store_items:
-      #   larger_one_side: 2.0
+      iros_make_a_sandwich:
+        larger_two_side: 1.714
+      iros_open_drawer_and_store_items:
+        larger_one_side: 2.0
       iros_pack_in_the_supermarket: # not closed enough as default, need to be larger
         larger_two_side: 4.0
         # larger_two_side: 3.0
-      # iros_clear_the_countertop_waste:
-      #   larger_two_side: 100.0
 
-    post_strategy:
-      default_post_strategy: "none"  # Options: "none", "threshold_as_max"
-      default_post_threshold_degrees: 50.0 # degrees
+    post_strategy_per_task:
+      post_strategy: "none"  # Options: "none", "threshold_as_max"
+      post_threshold_degrees: 50.0 # degrees
 
       # Per-task overrides
       post_strategy_per_task:
@@ -142,11 +139,11 @@ task_execution:
           frames_8: 0
           # frames_4: 1
         iros_restock_supermarket_items:
-          frames_16: 1
+          frames_16: 3
           frames_8: 0
           frames_4: 0
         iros_pickup_items_from_the_freezer:
-          frames_16: 0
+          frames_16: 1
         iros_make_a_sandwich:
           frames_16: 1
         iros_stamp_the_seal:
@@ -196,7 +193,6 @@ task_execution:
       # iros_pack_moving_objects_from_conveyor: 3
       iros_restock_supermarket_items: 1
       iros_clear_table_in_the_restaurant: 1
-      # iros_pickup_items_from_the_freezer: 2
     
     # IK error logging configuration
     enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
@@ -289,7 +285,7 @@ head_joint_configurations:
 # =========================================================================
 ros:
   # ROS node loop rate configuration (Hz)
-  loop_rate: 3.0  # Default: 3.0 Hz
+  loop_rate: 4.0  # Default: 4.0 Hz
   
   # Task-specific loop rates (overrides default)
   task_loop_rates:

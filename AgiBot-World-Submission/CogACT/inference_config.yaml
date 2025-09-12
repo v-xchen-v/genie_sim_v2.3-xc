@@ -52,18 +52,19 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps:
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7]
     iros_pack_moving_objects_from_conveyor:
       # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
-      pickup_substep: [0, 2, 4, 6, 8, 10, 12]  # Every 4th step for fast pickup
+      # pickup_substep: [0, 4, 8, 12]  # Still slow
+      pickup_substep: [3, 7, 11, 15]  # best but slow, remember the magic steps and 4hz is perfect with the model inference time cost
       place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
     # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
     iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
-    iros_pickup_items_from_the_freezer: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pickup_items_from_the_freezer: [0, 2, 4, 6, 8, 10, 12] # make it faster to push the freezer door with big force
     iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
-    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7]
     # iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] 
     iros_open_drawer_and_store_items: [0, 2, 4, 6, 8, 10, 12, 14] # move too slow, let's jump
     iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
@@ -73,15 +74,17 @@ task_execution:
     # Default gripper ratios for scaling
     default_ratios:
       larger_one_side: 1.714  # 1.2/0.7
-      larger_two_side: 1.714  # 1.2/0.7
+      larger_two_side: 2.428  # 1.2/0.7*scale to let largetr side same with larger_one_side
     
     # Task-specific gripper strategies
     strategy_per_task:
       iros_pack_moving_objects_from_conveyor: "larger_two_side"
       iros_pickup_items_from_the_freezer: "larger_two_side"
-      iros_restock_supermarket_items: "larger_two_side"
+      iros_restock_supermarket_items: "larger_one_side"
       iros_clear_table_in_the_restaurant: "larger_two_side"
-      iros_clear_the_countertop_waste: "larger_two_side"
+      iros_clear_the_countertop_waste: "larger_one_side"
+      # iros_pack_in_the_supermarket: "larger_two_side"
+      iros_pack_in_the_supermarket: "larger_two_side"
       default: "larger_one_side"
     
     # Task-specific gripper ratios (overrides default)
@@ -89,17 +92,38 @@ task_execution:
       iros_pack_moving_objects_from_conveyor:
         larger_two_side: 2
       iros_pickup_items_from_the_freezer:
-        larger_two_side: 2 # maybe smaller is better, need to test
+        larger_two_side: 2.5 # maybe smaller is better, need to test
       iros_restock_supermarket_items:
-        larger_two_side: 1.714
+        larger_one_side: 2.5
+      #   larger_two_side: 1.714
       # iros_make_a_sandwich:
       #   larger_one_side: 1.6
-      iros_make_a_sandwich:
-        larger_two_side: 1.714
-      iros_open_drawer_and_store_items:
-        larger_one_side: 2.0
-      # iros_pack_in_the_supermarket:
-      #   larger_two_side: 1.7
+      # iros_make_a_sandwich:
+      #   larger_two_side: 1.714
+      # iros_open_drawer_and_store_items:
+      #   larger_one_side: 2.0
+      iros_pack_in_the_supermarket: # not closed enough as default, need to be larger
+        larger_two_side: 4.0
+        # larger_two_side: 3.0
+      # iros_clear_the_countertop_waste:
+      #   larger_two_side: 100.0
+
+    post_strategy:
+      default_post_strategy: "none"  # Options: "none", "threshold_as_max"
+      default_post_threshold_degrees: 50.0 # degrees
+
+      # Per-task overrides
+      post_strategy_per_task:
+          # iros_pickup_items_from_the_freezer: "threshold_as_max"
+          # iros_make_a_sandwich: "none"
+          # iros_clear_table_in_the_restaurant: "threshold_as_max"
+          # iros_restock_supermarket_items: "threshold_as_max"
+          iros_pack_in_the_supermarket: "threshold_as_max"
+      
+      threshold_degrees_per_task:
+          # iros_pickup_items_from_the_freezer: 45.0
+          # iros_make_a_sandwich: 60.0
+          # iros_clear_table_in_the_restaurant: 40.0
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -114,15 +138,15 @@ task_execution:
       task_specific:
         iros_pack_in_the_supermarket: 
           frames_32: 0
-          frames_16: 5
+          frames_16: 0
           frames_8: 0
           # frames_4: 1
         iros_restock_supermarket_items:
-          frames_16: 3
+          frames_16: 1
           frames_8: 0
           frames_4: 0
         iros_pickup_items_from_the_freezer:
-          frames_16: 1
+          frames_16: 0
         iros_make_a_sandwich:
           frames_16: 1
         iros_stamp_the_seal:
@@ -172,6 +196,7 @@ task_execution:
       # iros_pack_moving_objects_from_conveyor: 3
       iros_restock_supermarket_items: 1
       iros_clear_table_in_the_restaurant: 1
+      # iros_pickup_items_from_the_freezer: 2
     
     # IK error logging configuration
     enable_error_logging: false  # Enable/disable logging of IK translation and rotation errors
@@ -202,13 +227,13 @@ task_progression:
     iros_heat_the_food_in_the_microwave: 40
     iros_open_drawer_and_store_items: 120 # give it enough time to open the drawer
     # iros_pack_moving_objects_from_conveyor: 15  # For [0, 4, 8, 12] steps
-    iros_pack_moving_objects_from_conveyor: 30  # For [0, 4, 8, 12] steps, rgb_depth
+    iros_pack_moving_objects_from_conveyor: 20  # For [0, 4, 8, 12] steps, rgb_depth
     iros_pickup_items_from_the_freezer: 24
     iros_make_a_sandwich: 12
   
   # Maximum inference counters (for timeout)
   max_inference_counters:
-    iros_pack_in_the_supermarket: 60
+    iros_pack_in_the_supermarket: 60 # 1-4 steps, 120->60 for rgb_depth
     iros_clear_table_in_the_restaurant: 40  # 1-9 steps
     iros_heat_the_food_in_the_microwave: 120
     iros_pickup_items_from_the_freezer: 80  # 1-12 steps
@@ -264,12 +289,12 @@ head_joint_configurations:
 # =========================================================================
 ros:
   # ROS node loop rate configuration (Hz)
-  loop_rate: 4.0  # Default: 4.0 Hz
+  loop_rate: 3.0  # Default: 3.0 Hz
   
   # Task-specific loop rates (overrides default)
   task_loop_rates:
     # Example task-specific configurations:
-    iros_pack_moving_objects_from_conveyor: 10.0  # Higher rate for fast tasks
+    iros_pack_moving_objects_from_conveyor: 4.0  # Higher rate for fast tasks
     iros_open_drawer_and_store_items: 2.0 # Slower for avoiding pushing drawer too fast
     # iros_stamp_the_seal: 2.0  # Lower rate for precise tasks
     iros_restock_supermarket_items: 2.0 # Slower for precise tasks

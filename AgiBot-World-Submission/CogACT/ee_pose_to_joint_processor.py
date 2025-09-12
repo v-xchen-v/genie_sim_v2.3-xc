@@ -340,13 +340,30 @@ class EEtoJointProcessor:
         # Supported strategies:
         #   - "threshold_as_max" (default): treat any gripper command above threshold_degrees as fully closed (1.0)
         #   - "none": do nothing
-        gripper_cfg = self.config.config.get("task_execution", {}).get("gripper_config", {})
-        post_strategy = gripper_cfg.get("post_strategy_per_task", {}).get(task_name,
-                  gripper_cfg.get("post_strategy", "threshold_as_max"))
+        """    
+        post_strategy_per_task:
+            post_strategy: "none"  # Options: "none", "threshold_as_max"
+            post_threshold_degrees: 50.0 # degrees
+
+            # Per-task overrides
+            post_strategy_per_task:
+                # iros_pickup_items_from_the_freezer: "threshold_as_max"
+                # iros_make_a_sandwich: "none"
+                # iros_clear_table_in_the_restaurant: "threshold_as_max"
+                # iros_restock_supermarket_items: "threshold_as_max"
+                iros_pack_in_the_supermarket: "threshold_as_max"
+            
+            threshold_degrees_per_task:
+                # iros_pickup_items_from_the_freezer: 45.0
+                # iros_make_a_sandwich: 60.0
+                # iros_clear_table_in_the_restaurant: 40.0"""
+
+        # get default if not specified
+        
+        post_strategy = self.config.get_gripper_pose_strategy(task_name)
 
         # Threshold degrees can be set globally or per-task (defaults to 50 degrees)
-        threshold_deg = gripper_cfg.get("threshold_degrees_per_task", {}).get(task_name,
-                gripper_cfg.get("post_threshold_degrees", 50.0))
+        threshold_deg = self.config.get_gripper_post_threshold_degrees(task_name)
         threshold = float(np.deg2rad(threshold_deg))
 
         if self.logger:
