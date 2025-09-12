@@ -310,8 +310,8 @@ policy:
 
   # Local inference settings (used when inference_mode="local")
   local_inference:
-    checkpoint_path: "checkpoints/port_38105/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
-    unnorm_key: "agibot_challenge_sim_v3_sub_zero_5_step"  # Key for unnormalization parameters in checkpoint
+    checkpoint_path: "checkpoints/port_28015/epoch=2-step=15000.ckpt"  # Path to model checkpoint directory
+    unnorm_key: "agibot_challenge_sim_v3_5_step"  # Key for unnormalization parameters in checkpoint
   #   model_config:
   #     model_type: "cogact_model"  # Type of model architecture
   #     input_size: [3, 224, 224]  # Input image dimensions [channels, height, width]
@@ -347,7 +347,7 @@ policy:
   #   Use this for models trained with robot-relative poses
 
   # Image input strategy configuration (model-dependent)
-  image_strategy: "rgb_depth"  # Options: "rgb_only", "rgb_depth"
+  image_strategy: "rgb_only"  # Options: "rgb_only", "rgb_depth"
   
   # Strategy descriptions:
   # - "rgb_only": Use only RGB images as input (original behavior)
@@ -359,7 +359,7 @@ policy:
   #   Note: Depth image processing is automatically enabled when using "rgb_depth"
 
   # Pose accumulation strategy configuration (model-dependent)
-  pose_strategy: "step0_relative"  # Options: "cumulative", "step0_relative"
+  pose_strategy: "cumulative"  # Options: "cumulative", "step0_relative"
   
   # Strategy descriptions:
   # - "cumulative": Original strategy - each step applies delta to previous step's pose
