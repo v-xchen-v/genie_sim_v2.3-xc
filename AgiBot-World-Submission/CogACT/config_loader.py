@@ -192,7 +192,33 @@ class InferenceConfig:
     def get_gripper_config(self) -> Dict[str, Any]:
         """Get complete gripper configuration."""
         return self.config['task_execution']['gripper_config']
-    
+
+    def get_gripper_pose_strategy(self, task_name: str) -> str:
+        """Get gripper pose strategy."""
+        gripper_config = self.get_gripper_config()
+        post_strategy = gripper_config["post_strategy"]
+        default_post_strategy = post_strategy['default_post_strategy']
+
+        # if have task specific strategy, use it
+        if 'post_strategy_per_task' in post_strategy:
+            task_strategies = post_strategy['post_strategy_per_task']
+            if task_strategies is not None and task_name in task_strategies:
+                return task_strategies[task_name]
+        return default_post_strategy
+
+    def get_gripper_post_threshold_degrees(self, task_name: str) -> float:
+        """Get gripper post threshold degrees."""
+        gripper_config = self.get_gripper_config()
+        post_strategy = gripper_config["post_strategy"]
+        default_threshold = post_strategy['default_post_threshold_degrees']
+
+        # if have task specific threshold, use it
+        if 'threshold_degrees_per_task' in post_strategy:
+            task_strategies = post_strategy['threshold_degrees_per_task']
+            if task_strategies is not None and task_name in task_strategies:
+                return task_strategies[task_name]
+        return default_threshold
+
     def get_gripper_strategy(self, task_name: str) -> str:
         """Get gripper strategy for a specific task."""
         gripper_config = self.get_gripper_config()

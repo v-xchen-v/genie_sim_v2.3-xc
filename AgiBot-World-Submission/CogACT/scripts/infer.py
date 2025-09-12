@@ -229,6 +229,8 @@ def infer(policy, task_name, enable_video_recording=False, enable_file_logging=T
     # Get coordinate mode from policy configuration
     coord_mode = config.get_coordinate_mode()
     image_strategy = config.get_image_strategy()
+    if task_name == "iros_pack_moving_objects_from_conveyor":
+        image_strategy = "rgb_only" # for fast moving task, rgb only is better
     pose_strategy = config.get_pose_strategy(task_name)
     logger.info(f"🔧 Using coordinate mode: {coord_mode}")
     logger.info(f"🖼️ Using image strategy: {image_strategy}")
@@ -740,7 +742,7 @@ if __name__ == "__main__":
                         help='Name of the task to run')
     # parser.add_argument('--enable_video_recording', action='store_true', default=True,
     #                     help='Enable saving of individual images during inference. Images are saved in the log directory. (default: False)')
-    parser.add_argument('--enable_file_logging', action='store_true', default=False,
+    parser.add_argument('--enable_file_logging', action='store_true', default=True,
                         help='Enable logging to file in addition to console output. (default: True), otherwise, console output only.')
     args = parser.parse_args()
 
