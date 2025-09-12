@@ -19,16 +19,48 @@ class EEtoJointProcessor:
     Supports two coordinate modes:
     - "camera": Transform through camera coordinates (original behavior): (camera frame) -> arm base frame -> 7-DoF joint angles.
     - "robot_base": Work directly in robot base coordinates (new behavior): (robot base frame) -> arm base frame -> 7-DoF joint angles.
+    
+    Supports two pose accumulation strategies:
+    - "cumulative": Original strategy - each step applies delta to previous step's pose (cumulative)
+        Step 1: current_pose + delta1 -> pose1
+        Step 2: pose1 + delta2 -> pose2  
+        Step 3: pose2 + delta3 -> pose3
+    - "step0_relative": New strategy - all steps apply delta relative to step 0 (current pose)
+        Step 1: current_pose + delta1 -> pose1
+        Step 2: current_pose + delta2 -> pose2
+        Step 3: current_pose + delta3 -> pose3
+    
+    Usage:
+        # Get pose strategy from config and initialize
+        config = get_config()
+        pose_strategy = config.get_pose_strategy(task_name)
+        processor = EEtoJointProcessor(logger=logger, coord_mode="camera", pose_strategy=pose_strategy)
+        
+        # Or use explicit strategy
+        processor = EEtoJointProcessor(logger=logger, coord_mode="camera", pose_strategy="step0_relative")
+        
+        # Change strategy at runtime
+        processor.set_pose_strategy("step0_relative")
+        
+        # Configure global pose strategy in inference_config.yaml:
+        # task_execution:
+        #   pose_strategy: "cumulative"  # or "step0_relative"
+    
     Uses urdfpy FK + relax IK.
     """
     ### ------------Public API------------ ###
-    def __init__(self, logger: Optional[Any] = None, coord_mode: str = "camera"):
+    def __init__(self, logger: Optional[Any] = None, coord_mode: str = "camera", pose_strategy: str = "cumulative"):
         # Load configuration
         self.config = get_config()
         
         self.coord_mode = coord_mode
         if self.coord_mode not in ["camera", "robot_base"]:
             raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
+        
+        # Set pose strategy from parameter (no config fallback)
+        if pose_strategy not in ["cumulative", "step0_relative"]:
+            raise ValueError(f"Invalid pose_strategy: {pose_strategy}. Must be 'cumulative' or 'step0_relative'.")
+        self.pose_strategy = pose_strategy
         
         self.fk_urdf_path = Path(__file__).parent / "kinematics/configs/g1/G1_omnipicker.urdf"
         if not self.fk_urdf_path.exists():
@@ -370,17 +402,40 @@ class EEtoJointProcessor:
             )
 
         rotation_list = []
-        rotation_sum = curr_ee_rot
         translation_list = []
-        for rot_delta in rotation_delta:
-            rotation_sum = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() @ rotation_sum
-            rotation_list.append(rotation_sum)
+        
+        # Use the pose strategy set during initialization
+        current_pose_strategy = self.pose_strategy
+        
+        if self.logger:
+            self.logger.debug(f"Using pose strategy: {current_pose_strategy} for {arm} arm")
+        
+        if current_pose_strategy == "cumulative":
+            # Original strategy: cumulative deltas from previous step
+            rotation_sum = curr_ee_rot
+            for rot_delta in rotation_delta:
+                rotation_sum = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() @ rotation_sum
+                rotation_list.append(rotation_sum)
 
-        translation_list = []
-        translation_sum = curr_ee_trans
-        for trans_delta in translation_delta:
-            translation_sum += trans_delta
-            translation_list.append(translation_sum.copy())
+            translation_sum = curr_ee_trans
+            for trans_delta in translation_delta:
+                translation_sum += trans_delta
+                translation_list.append(translation_sum.copy())
+                
+        elif current_pose_strategy == "step0_relative":
+            # New strategy: all steps relative to step 0 (current pose)
+            base_rotation = curr_ee_rot
+            base_translation = curr_ee_trans
+            
+            for rot_delta in rotation_delta:
+                # Apply delta rotation directly to the base rotation (step 0)
+                new_rotation = R.from_euler("xyz", rot_delta, degrees=False).as_matrix() @ base_rotation
+                rotation_list.append(new_rotation)
+            
+            for trans_delta in translation_delta:
+                # Apply delta translation directly to the base translation (step 0)
+                new_translation = base_translation + trans_delta
+                translation_list.append(new_translation.copy())
         
         # Convert poses to arm base frame based on coordinate mode
         T_ee_pose_arm_base_frame_list = []
@@ -635,6 +690,28 @@ class EEtoJointProcessor:
         T_real2sim = np.linalg.inv(T_sim2real)  # T_real2sim
         T_obj_in_realcam = T_real2sim @ T_obj_in_simcam
         return T_obj_in_realcam
+
+    def set_pose_strategy(self, strategy: str):
+        """
+        Set the pose accumulation strategy.
+        
+        Args:
+            strategy: Either "cumulative" or "step0_relative"
+                - "cumulative": Original strategy - each step applies delta to previous step's pose
+                - "step0_relative": New strategy - all steps apply delta relative to step 0 (current pose)
+        """
+        if strategy not in ["cumulative", "step0_relative"]:
+            raise ValueError(f"Invalid pose strategy: {strategy}. Must be 'cumulative' or 'step0_relative'")
+        
+        self.pose_strategy = strategy
+        if self.logger:
+            self.logger.info(f"Pose strategy set to: {strategy}")
+        else:
+            print(f"Pose strategy set to: {strategy}")
+
+    def get_pose_strategy(self) -> str:
+        """Get the current pose accumulation strategy."""
+        return self.pose_strategy
 
     # def set_gripper_strategy(self, strategy: str, task_name: str = "default"):
     #     """

@@ -277,6 +277,20 @@ class InferenceConfig:
         """Get whether IK error logging is enabled."""
         return self.config['task_execution']['ik_config'].get('enable_error_logging', True)
     
+    def get_pose_strategy(self, task_name: str = None) -> str:
+        """
+        Get pose accumulation strategy.
+        
+        Args:
+            task_name: Name of the task (optional, for future extensibility)
+            
+        Returns:
+            str: Either "cumulative" or "step0_relative"
+        """
+        # Get the pose strategy from policy section (model-dependent configuration)
+        # task_name is accepted for future extensibility but currently ignored
+        return self.config.get('policy', {}).get('pose_strategy', 'cumulative')
+    
     # =========================================================================
     # TASK PROGRESSION CONFIGURATION
     # =========================================================================
