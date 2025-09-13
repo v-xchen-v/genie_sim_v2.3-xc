@@ -354,43 +354,41 @@ class EEtoJointProcessor:
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
-        # # Apply gripper signal filter
-        # gripper_singal_filter = GripperSignalFilter(
-        #     ema_alpha=0.25,
-        #     max_step=0.08,          # tune to your control rate & gripper speed
-        #     dropout_abs=0.05,
-        #     dropout_rel_drop=0.5,   # “glitch” size
-        #     lookahead=1,
-        #     monotone=None           # or 'closing'/'opening' inside known phases
-        # )
+        # Apply gripper signal filter
+        gripper_singal_filter = GripperSignalFilter(
+            ema_alpha=0.25,
+            max_step=0.08,          # tune to your control rate & gripper speed
+            dropout_abs=0.05,
+            dropout_rel_drop=0.5,   # “glitch” size
+            lookahead=1,
+            monotone=None           # or 'closing'/'opening' inside known phases
+        )
         
         # to handle the gripper signal drop to zero suddenly in pickup phase, the later model fixed it, then we skip this part
         # # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
         # max_value = np.max(gripper_cmd_joint)
         # max_index = np.argmax(gripper_cmd_joint)
         
-        # # Fill values after max index with the max value
-        # gripper_cmd_joint_processed = gripper_cmd_joint.copy()
-        # gripper_cmd_joint_processed[max_index:] = max_value
+        # Fill values after max index with the max value
+        gripper_cmd_joint_processed = gripper_cmd_joint.copy()
+        gripper_cmd_joint_processed[max_index:] = max_value
 
-       
 
         gripper_cmd_joint_processed = gripper_cmd_joint.copy()
         filtered_gripper_cmd = gripper_cmd_joint_processed
-        # filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
-        # for i in range(gripper_cmd_joint_processed.shape[0]):
-        # # for i in range(12):
-        #     filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
+        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
+        for i in range(gripper_cmd_joint_processed.shape[0]):
+            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
 
-        # Respect the max gripper command to grasp object tightly   
+        # Respect the max gripper command to grasp object tightly
         # find max value of filtered_gripper_cmd and gripper_cmd_processed, compute the ratio and apply to filtered_gripper_cmd
-        # max_filtered = np.max(filtered_gripper_cmd)
-        # max_gripper = np.max(gripper_cmd_joint_processed)
-        # if max_gripper > 0 and max_filtered > 0:
-        #     filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
-        
+        max_filtered = np.max(filtered_gripper_cmd)
+        max_gripper = np.max(gripper_cmd_joint_processed)
+        if max_gripper > 0 and max_filtered > 0:
+            filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
+
         # handle the filter_gripper_cmd is array of nan, treat it as 0
-        # filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
+        filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
 
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
         # print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
