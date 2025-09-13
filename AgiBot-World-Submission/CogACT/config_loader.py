@@ -173,6 +173,16 @@ class InferenceConfig:
         """
         return self.config['policy']['coordinate_mode']
     
+    def get_with_joints_as_input(self) -> bool:
+        """
+        Get with_joints_as_input configuration from policy section.
+        
+        Returns:
+            Boolean indicating whether to include joint angles in robot state input.
+            Defaults to True if not specified in configuration.
+        """
+        return self.config['policy'].get('with_joints_as_input', True)
+    
     # def set_coordinate_mode(self, mode: str):
     #     """
     #     Set coordinate mode in policy configuration (runtime override).

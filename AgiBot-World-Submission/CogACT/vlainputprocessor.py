@@ -26,13 +26,14 @@ class VLAInputProcessor:
 
     #     # extra
     #     self._log_dir_registry = {}
-    def __init__(self, logger=None, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera", image_strategy="rgb_only"):        
+    def __init__(self, logger=None, log_obs=False, resize_mode="4x3_pad_resize", coord_mode="camera", image_strategy="rgb_only", config=None):        
         
         self.log_obs = log_obs
         self.resize_mode = resize_mode
         self.coord_mode = coord_mode  # "camera" or "robot_base"
         self.image_strategy = image_strategy  # "rgb_only" or "rgb_depth"
         self.logger = logger
+        self.config = config # Configuration object for accessing policy settings
         
         if self.coord_mode not in ["camera", "robot_base"]:
             raise ValueError(f"Invalid coord_mode: {self.coord_mode}. Must be 'camera' or 'robot_base'.")
@@ -73,6 +74,18 @@ class VLAInputProcessor:
         )
         self.last_left_arm_joint_angles = None
         self.last_right_arm_joint_angles = None
+        
+    def _get_with_joints_as_input(self) -> bool:
+        """
+        Get with_joints_as_input configuration from policy section.
+        
+        Returns:
+            Boolean indicating whether to include joint angles in robot state input.
+            Defaults to True if not specified in configuration.
+        """
+        if self.config is not None:
+            return self.config.get_with_joints_as_input()
+        return False  # Default to False for backward compatibility
 
     def process(self, img_h, img_l, img_r, lang, state, task_substep_index, head_joint_cfg=None, img_depth_h=None, img_depth_l=None, img_depth_r=None):
         """
@@ -248,19 +261,29 @@ class VLAInputProcessor:
         combined_robot_state = {    
             "ROBOT_LEFT_TRANS": [],
             "ROBOT_LEFT_ROT_EULER": [],
-            "ROBOT_LEFT_GRIPPER": [],
+            # "ROBOT_LEFT_GRIPPER": [],
             "ROBOT_RIGHT_TRANS": [],
             "ROBOT_RIGHT_ROT_EULER": [],
-            "ROBOT_RIGHT_GRIPPER": [],
+            # "ROBOT_RIGHT_GRIPPER": [],
         }
         
+        # A new strategy is added new two robot states, 'ROBOT_LEFT/RIGHT_JOINTS'
+        with_joints_as_input = self._get_with_joints_as_input()
+        if with_joints_as_input:
+            combined_robot_state["ROBOT_LEFT_JOINTS"] = []
+            combined_robot_state["ROBOT_RIGHT_JOINTS"] = []
+            
         for state in robot_states:
             combined_robot_state["ROBOT_LEFT_TRANS"].append(state["ROBOT_LEFT_TRANS"])
             combined_robot_state["ROBOT_LEFT_ROT_EULER"].append(state["ROBOT_LEFT_ROT_EULER"])
-            combined_robot_state["ROBOT_LEFT_GRIPPER"].append(state["ROBOT_LEFT_GRIPPER"])
+            # combined_robot_state["ROBOT_LEFT_GRIPPER"].append(state["ROBOT_LEFT_GRIPPER"])
             combined_robot_state["ROBOT_RIGHT_TRANS"].append(state["ROBOT_RIGHT_TRANS"])
             combined_robot_state["ROBOT_RIGHT_ROT_EULER"].append(state["ROBOT_RIGHT_ROT_EULER"])
-            combined_robot_state["ROBOT_RIGHT_GRIPPER"].append(state["ROBOT_RIGHT_GRIPPER"])
+            # combined_robot_state["ROBOT_RIGHT_GRIPPER"].append(state["ROBOT_RIGHT_GRIPPER"])
+            if with_joints_as_input:
+                combined_robot_state["ROBOT_LEFT_JOINTS"].append(robot_joints[:8].tolist())
+                combined_robot_state["ROBOT_RIGHT_JOINTS"].append(robot_joints[8:].tolist())
+            
         # Convert lists to numpy arrays
         for key in combined_robot_state:
             combined_robot_state[key] = np.array(combined_robot_state[key], dtype=np.float32)
@@ -341,11 +364,16 @@ class VLAInputProcessor:
         robot_state = {
             "ROBOT_LEFT_TRANS": left_ee_translation.tolist(),
             "ROBOT_LEFT_ROT_EULER": left_ee_rotation_euler_xyz.tolist(),
-            "ROBOT_LEFT_GRIPPER": np.array([left_gripper_joint]).tolist(),
+            # "ROBOT_LEFT_GRIPPER": np.array([left_gripper_joint]).tolist(),
             "ROBOT_RIGHT_TRANS": right_ee_translation.tolist(),
             "ROBOT_RIGHT_ROT_EULER": right_ee_rotation_euler_xyz.tolist(),
-            "ROBOT_RIGHT_GRIPPER": np.array([right_gripper_joint]).tolist(),
+            # "ROBOT_RIGHT_GRIPPER": np.array([right_gripper_joint]).tolist(),
         }
+        with_joints_as_input = self._get_with_joints_as_input()
+        if with_joints_as_input:
+            robot_state["ROBOT_LEFT_JOINTS"] = robot_joints[:7].tolist()
+            robot_state["ROBOT_RIGHT_JOINTS"] = robot_joints[8:15].tolist()
+            
         return robot_state
     
     def _transform_to_camera_coords(self, T_left_ee_armbase, T_right_ee_armbase, head_joint_cfg):
