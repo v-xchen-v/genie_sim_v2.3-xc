@@ -278,20 +278,35 @@ class EEtoJointProcessor:
             # Strategy 1: Original - larger on one side (amplify values directly)
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
         elif gripper_strategy == "larger_two_side":
-            # Strategy 2: New - larger on both sides around center
-            # gripper_upper = 0.7853981633974483  # 45 degrees in radians
-            gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
-            center = gripper_upper/2.0  # Center point (0.39269908169872414)
-            # Transform gripper values: (value - center) * ratio, then map back to larger range
-            gripper_transformed = (gripper_act_value - center) * ratio
-            # # Map back to larger range around [0, 1]
-            # if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich"\
-            #     or task_name == "iros_clear_table_in_the_restaurant"\
-            #     or task_name == "iros_restock_supermarket_items": 
-            gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
-            # else:
-            #     # maybe wa here, need to fix later more
-            #     gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
+            if task_name == "iros_pack_in_the_supermarket":
+                def scale_with_margin(v, margin=0.4):
+                    """
+                    Map v in [0,1] to [-margin_left, 1+margin_right].
+                    v may be scalar or numpy array.
+                    If margin_right is None, uses margin_left for both sides (symmetric).
+                    """
+                    margin_left=margin/10
+                    margin_right=margin
+                    scale = 1.0 + margin_left + margin_right
+                    return np.array(v) * scale - margin_left
+
+                gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
+                gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
+            else:
+                # Strategy 2: New - larger on both sides around center
+                # gripper_upper = 0.7853981633974483  # 45 degrees in radians
+                gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
+                center = gripper_upper/2.0  # Center point (0.39269908169872414)
+                # Transform gripper values: (value - center) * ratio, then map back to larger range
+                gripper_transformed = (gripper_act_value - center) * ratio
+                # # Map back to larger range around [0, 1]
+                # if task_name == "iros_pickup_items_from_the_freezer" or task_name == "iros_make_a_sandwich"\
+                #     or task_name == "iros_clear_table_in_the_restaurant"\
+                #     or task_name == "iros_restock_supermarket_items": 
+                gripper_cmd_joint = np.clip(gripper_transformed + center, 0, 1)  # [num_steps, 1]
+                # else:
+                #     # maybe wa here, need to fix later more
+                #     gripper_cmd_joint = np.clip(gripper_transformed + center*ratio, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 

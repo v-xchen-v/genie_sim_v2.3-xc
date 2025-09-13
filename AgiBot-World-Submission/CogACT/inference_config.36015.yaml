@@ -52,7 +52,7 @@ task_execution:
   
   # Task-specific execution steps
   task_execution_steps:
-    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
     iros_pack_moving_objects_from_conveyor:
       # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
@@ -98,8 +98,8 @@ task_execution:
         larger_two_side: 1.714
       iros_open_drawer_and_store_items:
         larger_one_side: 2.0
-      # iros_pack_in_the_supermarket:
-      #   larger_two_side: 1.7
+      iros_pack_in_the_supermarket:
+        larger_two_side: 1
     
     # Gripper timing adjustment (frames to shift forward)
     timing_adjustment:
@@ -113,20 +113,15 @@ task_execution:
       # Task-specific timing adjustments
       task_specific:
         iros_pack_in_the_supermarket: 
-          frames_32: 0
-          frames_16: 5
-          frames_8: 0
-          # frames_4: 1
+          frames_16: -1 # if want closer gripper but more close too earily, give a negative value
         iros_restock_supermarket_items:
-          frames_16: 3
-          frames_8: 0
-          frames_4: 0
-        iros_pickup_items_from_the_freezer:
           frames_16: 1
+        iros_pickup_items_from_the_freezer:
+          frames_16: 0
         iros_make_a_sandwich:
           frames_16: 1
         iros_stamp_the_seal:
-          frames_32: -5
+          frames_16: -5
         iros_clear_table_in_the_restaurant:
           frames_16: 3
         iros_clear_the_countertop_waste:
