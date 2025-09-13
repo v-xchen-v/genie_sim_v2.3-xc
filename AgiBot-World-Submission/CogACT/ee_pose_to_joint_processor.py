@@ -321,21 +321,21 @@ class EEtoJointProcessor:
                     
                     return scaled_unit_space
 
-                def scale_with_margin_symmetric(v, margin=0.4):
-                    """
-                    Map v in [0,1] to [-margin, 1+margin].
-                    v may be scalar or numpy array.
-                    """
-                    scale = 1.0 + 2.0 * margin
-                    return np.array(v) * scale - margin # [num_steps, 1]
+                # def scale_with_margin_symmetric(v, margin=0.4):
+                #     """
+                #     Map v in [0,1] to [-margin, 1+margin].
+                #     v may be scalar or numpy array.
+                #     """
+                #     scale = 1.0 + 2.0 * margin
+                #     return np.array(v) * scale - margin # [num_steps, 1]
                     
-                self.logger.info(f"Before gripper scaling: min {np.min(gripper_act_value)}, max {np.max(gripper_act_value)}")
-                self.logger.info(f"Gripper values: {gripper_act_value.flatten()}")
+                # self.logger.info(f"Before gripper scaling: min {np.min(gripper_act_value)}, max {np.max(gripper_act_value)}")
+                # self.logger.info(f"Gripper values: {gripper_act_value.flatten()}")
                 gripper_cmd_joint = scale_with_margin_partial_space(gripper_act_value, margin=ratio)
                 # gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
 
-                self.logger.info(f"After gripper scaling: min {np.min(gripper_cmd_joint)}, max {np.max(gripper_cmd_joint)}")
-                self.logger.info(f"Scaled gripper values: {gripper_cmd_joint.flatten()}")
+                # self.logger.info(f"After gripper scaling: min {np.min(gripper_cmd_joint)}, max {np.max(gripper_cmd_joint)}")
+                # self.logger.info(f"Scaled gripper values: {gripper_cmd_joint.flatten()}")
             else:
                 # Strategy 2: New - larger on both sides around center
                 # gripper_upper = 0.7853981633974483  # 45 degrees in radians
