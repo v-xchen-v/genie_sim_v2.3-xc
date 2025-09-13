@@ -375,7 +375,6 @@ class EEtoJointProcessor:
 
 
         gripper_cmd_joint_processed = gripper_cmd_joint.copy()
-        filtered_gripper_cmd = gripper_cmd_joint_processed
         filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
         for i in range(gripper_cmd_joint_processed.shape[0]):
             filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
