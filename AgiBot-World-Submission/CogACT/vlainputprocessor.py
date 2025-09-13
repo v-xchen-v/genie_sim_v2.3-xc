@@ -375,6 +375,10 @@ class VLAInputProcessor:
         if with_joints_as_input:
             robot_state["ROBOT_LEFT_JOINTS"] = robot_joints[:7].tolist()
             robot_state["ROBOT_RIGHT_JOINTS"] = robot_joints[8:15].tolist()
+            # remove ROBOT_LEFT_GRIPPER, ROBOT_RIGHT_GRIPPER from robot_state
+            robot_state.pop("ROBOT_LEFT_GRIPPER", None)
+            robot_state.pop("ROBOT_RIGHT_GRIPPER", None)
+
         return robot_state
     
     def _transform_to_camera_coords(self, T_left_ee_armbase, T_right_ee_armbase, head_joint_cfg):
