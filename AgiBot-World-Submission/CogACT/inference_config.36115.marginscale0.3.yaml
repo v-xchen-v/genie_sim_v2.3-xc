@@ -52,22 +52,22 @@ task_execution:
 
   # Task-specific execution steps
   task_execution_steps:
-    # iros_pack_in_the_supermarket: [0, 1, 2, 3]
-    # iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7]
-    # iros_pack_moving_objects_from_conveyor:
-    #   # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
-    #   # pickup_substep: [0, 4, 8, 12]  # Still slow
-    #   pickup_substep: [3, 7, 11, 15]  # best but slow, remember the magic steps and 4hz is perfect with the model inference time cost
-    #   place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
-    # # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
-    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
-    # iros_pickup_items_from_the_freezer: [0, 2, 4, 6, 8, 10, 12] # make it faster to push the freezer door with big force
-    # iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    # iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
-    # iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7]
-    # # iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] 
-    # iros_open_drawer_and_store_items: [0, 2, 4, 6, 8, 10, 12, 14] # move too slow, let's jump
-    # iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
+    iros_pack_in_the_supermarket: [0, 1, 2, 3]
+    iros_restock_supermarket_items: [0, 1, 2, 3, 4, 5, 6, 7]
+    iros_pack_moving_objects_from_conveyor:
+      # pickup_substep: [0, 4, 8, 10, 12]  # Every 4th step for fast pickup
+      # pickup_substep: [0, 4, 8, 12]  # Still slow
+      pickup_substep: [3, 7, 11, 15]  # best but slow, remember the magic steps and 4hz is perfect with the model inference time cost
+      place_substep: [0, 1, 2, 3, 4, 5, 6, 7]   # First 8 steps for placing
+    # iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] # pick wa item is shorten than 12 on 19015
+    iros_clear_table_in_the_restaurant: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] # best but not good for 19015
+    iros_pickup_items_from_the_freezer: [0, 2, 4, 6, 8, 10, 12] # make it faster to push the freezer door with big force
+    iros_make_a_sandwich: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    iros_heat_the_food_in_the_microwave: [0, 1, 2, 3]  # Use first 8 steps
+    iros_clear_the_countertop_waste: [0, 1, 2, 3, 4, 5, 6, 7]
+    # iros_open_drawer_and_store_items: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] 
+    iros_open_drawer_and_store_items: [0, 2, 4, 6, 8, 10, 12, 14] # move too slow, let's jump
+    iros_stamp_the_seal: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]
 
   # Gripper configuration
   gripper_config:
@@ -213,7 +213,7 @@ task_progression:
     iros_stamp_the_seal: 0.99
     iros_clear_the_countertop_waste: 0.96
     iros_clear_table_in_the_restaurant: 0.97
-    iros_heat_the_food_in_the_microwave: 0.96
+    iros_heat_the_food_in_the_microwave: 0.995
     iros_open_drawer_and_store_items: 0.97
     iros_pickup_items_from_the_freezer: 0.95
     iros_make_a_sandwich: 0.96

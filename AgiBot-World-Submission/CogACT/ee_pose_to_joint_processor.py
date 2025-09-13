@@ -302,7 +302,21 @@ class EEtoJointProcessor:
                 margin_right=margin
                 scale = 1.0 + margin_left + margin_right
                 return np.array(v) * scale - margin_left
-            gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
+
+            def scale_with_margin_symmetric(v, margin=0.4):
+                """
+                Map v in [0,1] to [-margin, 1+margin].
+                v may be scalar or numpy array.
+                """
+                scale = 1.0 + 2.0 * margin
+                return np.array(v) * scale - margin # [num_steps, 1]
+
+            if task_name == "iros_pickup_items_from_the_freezer"
+                or task_name == "iros_pack_moving_objects_from_conveyor":
+                # for this task, we want to use asymmetric margin to avoid dropping objects
+                gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
+            else:
+                gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
             gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
