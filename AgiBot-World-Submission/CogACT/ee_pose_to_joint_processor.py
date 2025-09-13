@@ -311,8 +311,8 @@ class EEtoJointProcessor:
                 scale = 1.0 + 2.0 * margin
                 return np.array(v) * scale - margin # [num_steps, 1]
 
-            if task_name == "iros_pickup_items_from_the_freezer"
-                or task_name == "iros_pack_moving_objects_from_conveyor":
+            if task_name == "iros_pickup_items_from_the_freezer" : #\
+                # or task_name == "iros_pack_moving_objects_from_conveyor":
                 # for this task, we want to use asymmetric margin to avoid dropping objects
                 gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
             else:
