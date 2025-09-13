@@ -396,6 +396,17 @@ policy:
   #   Step 2: current_pose + delta2 -> pose2
   #   Step 3: current_pose + delta3 -> pose3
 
+  # Joint angles input configuration (model-dependent)
+  with_joints_as_input: true  # Options: true, false
+  
+  # Description:
+  # - true: Include joint angles in robot state input (new behavior)
+  #   Robot state includes: ROBOT_LEFT_JOINTS, ROBOT_RIGHT_JOINTS (in addition to poses)
+  #   Use this for models trained with joint angle inputs
+  # - false: Use only pose information in robot state input (original behavior)
+  #   Robot state includes only: translation, rotation, gripper states
+  #   Use this for models trained without joint angle inputs
+
 # # =========================================================================
 # # SIMULATION CONFIGURATION
 # # =========================================================================
