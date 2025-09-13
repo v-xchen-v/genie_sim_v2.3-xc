@@ -243,12 +243,12 @@ def scale_with_margin(v, margin=0.4):
     v may be scalar or numpy array.
     """
     scale = 1.0 + 2.0 * margin
-    return v * scale - margin
+    return np.array(v) * scale - margin
 
 def unscale_with_margin(cmd, margin=0.4):
     """Inverse mapping: map cmd in [-margin, 1+margin] back to [0,1]."""
     scale = 1.0 + 2.0 * margin
-    return (cmd + margin) / scale
+    return (np.array(cmd) + margin) / scale
 
 # Optional safe wrapper with final clipping to a desired range:
 import numpy as np
@@ -275,16 +275,26 @@ for vi, sv in zip(v, scale_with_margin(v, margin=0.4)):
 def radius_to_degree(radius):
     return radius * 180.0 / np.pi
 # What if first one-side scale for faster closing, then margin scaling?
-r_one_side = 1.0/0.98
+r_one_side = 1.0/0.7  # 1.429
+# r_one_side = 1.2/0.7
 v = np.linspace(0.0, 1.0, 11)
 one_side = np.clip(v * r_one_side, 0.0, 1.0)
 scaled = scale_with_margin(one_side, margin=0.1)
+scaled_alone = scale_with_margin(v, margin=0.1) # with in 7 degree scale delta
+scaled_alone = scale_with_margin(v, margin=0.3) # with in 14 degree scale delta
+scaled_alone = scale_with_margin(v, margin=2) # with in 20 degree scale delta,  align with r_one_side=1.2/0.7
+scaled_alone = scale_with_margin(v, margin=1.285) # with in 20 degree scale delta,  align with r_one_side=1.0/0.7
+
+# try later in these 4 setting: margin = 0.1, 0.3, 1, 1.285
+print(f"Scaled alone: {scaled_alone}")
+
+
 r_two_side = equivalent_two_side_ratio(r_one_side)
 two_side_direct = v * center * r_two_side + (v - center) * r_two_side  # if you wanted to apply two-side directly on raw v
 clipped = np.clip(scaled, 0.0, 1.0)
-print("v\tone_side\tscaled\tscaled_clipped\tratio")
-for vi, o, s, td in zip(v, one_side, scaled, two_side_direct):
+print("v\tone_side\tscaled_alone\tscaled\tscaled_clipped\tratio")
+for vi, o, s, sa, td in zip(v, one_side, scaled, scaled_alone, two_side_direct):
     clipped = np.clip(s, 0, 1)
     ratio = clipped / vi if vi != 0 else 0
     # print(f"{vi:0.2f}\t{o:0.3f}\t{s:0.3f}\t{clipped:0.3f}\t{ratio:0.3f}")
-    print(f"{radius_to_degree(vi):0.2f}\t{radius_to_degree(o):0.2f}\t\t{radius_to_degree(s):0.2f}\t\t{radius_to_degree(clipped):0.2f}\t{radius_to_degree(ratio*vi):0.2f}\t{radius_to_degree(td):0.2f}")
+    print(f"{radius_to_degree(vi):0.2f}\t{radius_to_degree(o):0.2f}\t\t{radius_to_degree(sa):0.2f}\t\t{radius_to_degree(s):0.2f}\t\t{radius_to_degree(clipped):0.2f}\t{radius_to_degree(ratio*vi):0.2f}\t{radius_to_degree(td):0.2f}")
