@@ -370,8 +370,8 @@ class EEtoJointProcessor:
         # max_index = np.argmax(gripper_cmd_joint)
         
         # Fill values after max index with the max value
-        gripper_cmd_joint_processed = gripper_cmd_joint.copy()
-        gripper_cmd_joint_processed[max_index:] = max_value
+        # gripper_cmd_joint_processed = gripper_cmd_joint.copy()
+        # gripper_cmd_joint_processed[max_index:] = max_value
 
 
         gripper_cmd_joint_processed = gripper_cmd_joint.copy()
