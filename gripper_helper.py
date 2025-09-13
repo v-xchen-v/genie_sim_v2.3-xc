@@ -239,16 +239,23 @@ for vi, o, t, c, ov in zip(v, one_side, two_side_direct, centered, one_side_var)
 
 def scale_with_margin(v, margin=0.4):
     """
-    Map v in [0,1] to [-margin, 1+margin].
+    Map v in [0,1] to [-margin_left, 1+margin_right].
     v may be scalar or numpy array.
+    If margin_right is None, uses margin_left for both sides (symmetric).
     """
-    scale = 1.0 + 2.0 * margin
-    return np.array(v) * scale - margin
+    margin_left=margin/10
+    margin_right=margin
+    scale = 1.0 + margin_left + margin_right
+    return np.array(v) * scale - margin_left
 
 def unscale_with_margin(cmd, margin=0.4):
-    """Inverse mapping: map cmd in [-margin, 1+margin] back to [0,1]."""
-    scale = 1.0 + 2.0 * margin
-    return (np.array(cmd) + margin) / scale
+    """
+    Inverse mapping: map cmd in [-margin_left, 1+margin_right] back to [0,1].
+    """
+    margin_left=margin/5
+    margin_right=margin
+    scale = 1.0 + margin_left + margin_right
+    return (np.array(cmd) + margin_left) / scale
 
 # Optional safe wrapper with final clipping to a desired range:
 import numpy as np
@@ -260,7 +267,7 @@ def scale_with_margin_clipped(v, margin=0.4, clip_low=None, clip_high=None):
 
 # Quick demo
 import numpy as np
-v = np.linspace(0.0, 1.0, 11)
+v = np.linspace(0.0, 1.0, 15)
 print(scale_with_margin(v, margin=0.4))
 # -> [-0.4  -0.22 -0.04  0.14  0.32  0.5   0.68  0.86  1.04  1.22  1.4 ]
 
@@ -277,13 +284,15 @@ def radius_to_degree(radius):
 # What if first one-side scale for faster closing, then margin scaling?
 r_one_side = 1.0/0.7  # 1.429
 # r_one_side = 1.2/0.7
-v = np.linspace(0.0, 1.0, 11)
+v = np.linspace(0.0, 1.0, 25)
 one_side = np.clip(v * r_one_side, 0.0, 1.0)
 scaled = scale_with_margin(one_side, margin=0.1)
-scaled_alone = scale_with_margin(v, margin=0.1) # with in 7 degree scale delta
-scaled_alone = scale_with_margin(v, margin=0.3) # with in 14 degree scale delta
-scaled_alone = scale_with_margin(v, margin=2) # with in 20 degree scale delta,  align with r_one_side=1.2/0.7
-scaled_alone = scale_with_margin(v, margin=1.285) # with in 20 degree scale delta,  align with r_one_side=1.0/0.7
+scaled_alone = scale_with_margin(v, margin=0.1) # with in 6 degree scale delta, at 25 degree, bigger 1 degree, less than 5 degree, more opener
+# scaled_alone = scale_with_margin(v, margin=0.3) # with in 12 degree scale delta, at 25 degree, bigger 3 degree; less then 5 degree, more opener
+# scaled_alone = scale_with_margin(v, margin=1) # with in 18 degree scale delta, at 25 degree, bigger 12 degree; less than 5 degree, more opener
+
+# scaled_alone = scale_with_margin(v, margin=2) # with in 20 degree scale delta,  align with r_one_side=1.2/0.7, at 25 degree, bigger 25 degree
+# scaled_alone = scale_with_margin(v, margin=1.285) # with in 30 degree scale delta,  align with r_one_side=1.0/0.7, at 25 degree, bigger 20 degree
 
 # try later in these 4 setting: margin = 0.1, 0.3, 1, 1.285
 print(f"Scaled alone: {scaled_alone}")

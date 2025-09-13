@@ -280,16 +280,29 @@ class EEtoJointProcessor:
         elif gripper_strategy == "larger_two_side":
             # Strategy 2: New - larger on both sides around center
             # gripper_upper = 0.7853981633974483  # 45 degrees in radians
-            gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
-            center = gripper_upper/2.0  # Center point (0.39269908169872414)
+            # gripper_upper = 1.0 # 1 radians, fully closed, about 57.3 degrees
+            # center = gripper_upper/2.0  # Center point (0.39269908169872414)
 
-           # Calculate offset from center (-0.5 to 0.5)
-            offset_from_center = gripper_act_value - center
-            # Multiply offset by ratio
-            scaled_offset = offset_from_center * ratio
+            # Calculate offset from center (-0.5 to 0.5)
+            # def scale_with_margin(v, margin=0.4):
+            #     """
+            #     Map v in [0,1] to [-margin, 1+margin].
+            #         v may be scalar or numpy array.
+            #     """
+            #     scale = 1.0 + 2.0 * margin
+            #     return np.array(v) * scale - margin # [num_steps, 1]
             
-            # Add back to center and clip to valid range
-            gripper_cmd_joint = center + scaled_offset
+            def scale_with_margin(v, margin=0.4):
+                """
+                Map v in [0,1] to [-margin_left, 1+margin_right].
+                v may be scalar or numpy array.
+                If margin_right is None, uses margin_left for both sides (symmetric).
+                """
+                margin_left=margin/10
+                margin_right=margin
+                scale = 1.0 + margin_left + margin_right
+                return np.array(v) * scale - margin_left
+            gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
             gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
