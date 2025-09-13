@@ -279,19 +279,63 @@ class EEtoJointProcessor:
             gripper_cmd_joint = np.clip(gripper_act_value * ratio, 0, 1)  # [num_steps, 1]
         elif gripper_strategy == "larger_two_side":
             if task_name == "iros_pack_in_the_supermarket":
-                def scale_with_margin(v, margin=0.4):
-                    """
-                    Map v in [0,1] to [-margin_left, 1+margin_right].
-                    v may be scalar or numpy array.
-                    If margin_right is None, uses margin_left for both sides (symmetric).
-                    """
-                    margin_left=margin/10
-                    margin_right=margin
-                    scale = 1.0 + margin_left + margin_right
-                    return np.array(v) * scale - margin_left
+                # def scale_with_margin(v, margin=0.4):
+                #     """
+                #     Map v in [0,1] to [-margin_left, 1+margin_right] where margin_left=margin and margin_right=margin/10.
+                #     v may be scalar or numpy array.
+                #     """
+                #     margin_left=margin
+                #     margin_right=margin/10
+                #     scale = 1.0 + margin_left + margin_right
+                #     return np.array(v) * scale - margin_left
 
-                gripper_cmd_joint = scale_with_margin(gripper_act_value, margin=ratio)
-                gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
+                def scale_with_margin_partial_space(v, margin=0.4):
+                    """
+                    1. Map input range [v_min, v_max] to a portion of [0, 1] space
+                    2. Apply margin scaling to the full [0, 1] -> [-margin_left, 1+margin_right]
+                    3. Map the result back to original coordinate system
+                    
+                    This preserves the relative position within [0,1] space but applies 
+                    scaling to the entire [0,1] range, not just the occupied portion.
+                    """
+                    v_array = np.array(v)
+                    v_min, v_max = np.min(v_array), np.max(v_array)
+                    original_range = v_max - v_min
+                    
+                    if original_range == 0:
+                        return v_array
+                    
+                    # Step 1: Map input to its position within [0,1] space
+                    # The input [v_min, v_max] occupies the region [v_min, v_max] within [0,1]
+                    # So no normalization - keep the actual values as positions in [0,1]
+                    v_in_unit_space = v_array  # Input is already in [0,1] coordinate system
+                    
+                    # Step 2: Apply margin scaling to the full [0,1] space
+                    margin_left = margin / 10
+                    margin_right = margin  
+                    scale = 1.0 + margin_left + margin_right
+                    scaled_unit_space = v_in_unit_space * scale - margin_left
+                    
+                    # Step 3: The result is already in the desired coordinate system
+                    # No need to map back since we're working in the original coordinates
+                    
+                    return scaled_unit_space
+
+                def scale_with_margin_symmetric(v, margin=0.4):
+                    """
+                    Map v in [0,1] to [-margin, 1+margin].
+                    v may be scalar or numpy array.
+                    """
+                    scale = 1.0 + 2.0 * margin
+                    return np.array(v) * scale - margin # [num_steps, 1]
+                    
+                self.logger.info(f"Before gripper scaling: min {np.min(gripper_act_value)}, max {np.max(gripper_act_value)}")
+                self.logger.info(f"Gripper values: {gripper_act_value.flatten()}")
+                gripper_cmd_joint = scale_with_margin_partial_space(gripper_act_value, margin=ratio)
+                # gripper_cmd_joint = np.clip(gripper_cmd_joint, 0, 1)  # [num_steps, 1]
+
+                self.logger.info(f"After gripper scaling: min {np.min(gripper_cmd_joint)}, max {np.max(gripper_cmd_joint)}")
+                self.logger.info(f"Scaled gripper values: {gripper_cmd_joint.flatten()}")
             else:
                 # Strategy 2: New - larger on both sides around center
                 # gripper_upper = 0.7853981633974483  # 45 degrees in radians
@@ -310,15 +354,15 @@ class EEtoJointProcessor:
         else:
             raise ValueError(f"Unknown gripper strategy: {gripper_strategy}")
 
-        # Apply gripper signal filter
-        gripper_singal_filter = GripperSignalFilter(
-            ema_alpha=0.25,
-            max_step=0.08,          # tune to your control rate & gripper speed
-            dropout_abs=0.05,
-            dropout_rel_drop=0.5,   # “glitch” size
-            lookahead=1,
-            monotone=None           # or 'closing'/'opening' inside known phases
-        )
+        # # Apply gripper signal filter
+        # gripper_singal_filter = GripperSignalFilter(
+        #     ema_alpha=0.25,
+        #     max_step=0.08,          # tune to your control rate & gripper speed
+        #     dropout_abs=0.05,
+        #     dropout_rel_drop=0.5,   # “glitch” size
+        #     lookahead=1,
+        #     monotone=None           # or 'closing'/'opening' inside known phases
+        # )
         
         # to handle the gripper signal drop to zero suddenly in pickup phase, the later model fixed it, then we skip this part
         # # process the gripper_cmd_joint array, find the max value in the array, and fill the value after it all as the max value
@@ -329,22 +373,24 @@ class EEtoJointProcessor:
         # gripper_cmd_joint_processed = gripper_cmd_joint.copy()
         # gripper_cmd_joint_processed[max_index:] = max_value
 
+       
 
         gripper_cmd_joint_processed = gripper_cmd_joint.copy()
-
-        filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
-        for i in range(gripper_cmd_joint_processed.shape[0]):
-            filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
+        filtered_gripper_cmd = gripper_cmd_joint_processed
+        # filtered_gripper_cmd = np.zeros_like(gripper_cmd_joint_processed)
+        # for i in range(gripper_cmd_joint_processed.shape[0]):
+        # # for i in range(12):
+        #     filtered_gripper_cmd[i] = gripper_singal_filter.step(gripper_cmd_joint_processed[i])
 
         # Respect the max gripper command to grasp object tightly   
         # find max value of filtered_gripper_cmd and gripper_cmd_processed, compute the ratio and apply to filtered_gripper_cmd
-        max_filtered = np.max(filtered_gripper_cmd)
-        max_gripper = np.max(gripper_cmd_joint_processed)
-        if max_gripper > 0 and max_filtered > 0:
-            filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
+        # max_filtered = np.max(filtered_gripper_cmd)
+        # max_gripper = np.max(gripper_cmd_joint_processed)
+        # if max_gripper > 0 and max_filtered > 0:
+        #     filtered_gripper_cmd = filtered_gripper_cmd * (max_gripper / max_filtered)
         
         # handle the filter_gripper_cmd is array of nan, treat it as 0
-        filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
+        # filtered_gripper_cmd = np.nan_to_num(filtered_gripper_cmd, nan=0.0)
 
         # gripper_cmd is joint angle in radians, where 0 is fully open and 0.7853981633974483 is fully closed
         # print(f"gripper command shape: {gripper_cmd.shape}, gripper command: {gripper_cmd}")
